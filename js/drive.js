@@ -323,8 +323,11 @@ function buildCar({ body: bodyColor, wheels: wheelColor, roof }) {
   const add = (geo, mat, x, y, z, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const body = new THREE.Group();
   g.add(body);
-  add(new THREE.BoxGeometry(2, 0.75, 3.6), toon(bodyColor), 0, 0.8, 0, body);
-  add(new THREE.BoxGeometry(1.8, 0.75, 2), toon(0xfbf6ea), 0, 1.5, -0.25, body);
+  // extra segments so the shell can crumple when it gets hit
+  const shell = [
+    add(new THREE.BoxGeometry(2, 0.75, 3.6, 6, 3, 10), toon(bodyColor), 0, 0.8, 0, body),
+    add(new THREE.BoxGeometry(1.8, 0.75, 2, 5, 3, 6), toon(0xfbf6ea), 0, 1.5, -0.25, body),
+  ];
   const glass = toon(0x2b59c3);
   add(new THREE.BoxGeometry(1.62, 0.55, 0.06), glass, 0, 1.52, 0.78, body).rotation.x = -0.35;
   add(new THREE.BoxGeometry(1.62, 0.5, 0.06), glass, 0, 1.52, -1.27, body);
@@ -357,7 +360,7 @@ function buildCar({ body: bodyColor, wheels: wheelColor, roof }) {
   else if (roof === 'teh') { orn = buildDish('teh-tarik', 1.0); orn.position.set(0, 2.4, -0.3); }
   else if (roof === 'bunga') { orn = buildHibiscus(); orn.scale.multiplyScalar(0.42); orn.position.set(0, 2.2, -0.3); }
   if (orn) { orn.traverse((o) => { if (o.isMesh) o.castShadow = true; }); body.add(orn); }
-  Object.assign(g.userData, { body, wheels, front });
+  Object.assign(g.userData, { body, wheels, front, shell, dented: false });
   return g;
 }
 
@@ -368,13 +371,14 @@ function rebuildCar() {
   car = buildCar(trip.car);
   car.position.copy(old.position);
   car.rotation.copy(old.rotation);
+  car.visible = old.visible;
   scene.remove(old);
   scene.add(car);
 }
 
 // the rival: Ah Beng in a red kancil with a durian on the roof
 const RIVAL_LOOK = { body: 0xd8321f, wheels: 0xf5b700, roof: 'durian' };
-const rivalCar = buildCar(RIVAL_LOOK);
+let rivalCar = buildCar(RIVAL_LOOK);
 rivalCar.visible = false;
 scene.add(rivalCar);
 
@@ -419,7 +423,7 @@ function pose(obj, st, dt, throttle = 0) {
 }
 
 function step(dt) {
-  const input = !modalOpen() && !race.countingDown;
+  const input = !modalOpen() && !race.countingDown && !drive.dead;
   const throttle = input ? (keys.up ? 1 : 0) - (keys.down ? 1 : 0) : 0;
   const steerIn = input ? (keys.left ? 1 : 0) - (keys.right ? 1 : 0) : 0;
   if (throttle > 0) drive.speed += (drive.speed < 0 ? 40 : 16) * dt;
@@ -600,7 +604,7 @@ for (let k = 1; k < PATH.length; k++) {
   const pieces = last ? 1 : len > 110 ? 3 : len > 60 ? 2 : 1;
   for (let p = 1; p <= pieces; p++) {
     const f = last ? 1 : p / (pieces + 1); // the last one is the finish line itself
-    GATE_SPOTS.push({ x: ax + (bx - ax) * f, z: az + (bz - az) * f, ang: Math.atan2(bx - ax, bz - az) });
+    GATE_SPOTS.push({ x: ax + (bx - ax) * f, z: az + (bz - az) * f, ang: Math.atan2(bx - ax, bz - az), seg: k });
   }
 }
 const race = { running: false, countingDown: false, mode: 'trial', idx: 0, t: 0 };
@@ -628,7 +632,7 @@ const gates = GATE_SPOTS.map(({ x, z, ang }, k) => {
   const onLine = (v) => LINES.some((l) => Math.abs(v - l) < ROAD / 2);
   const axes = [ang, ang + Math.PI];
   if (onLine(x) && onLine(z)) axes.push(ang + Math.PI / 2, ang - Math.PI / 2);
-  return { x, z, obj: g, axes, cur: ang };
+  return { x, z, obj: g, axes, cur: ang, ang, seg: GATE_SPOTS[k].seg };
 });
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 /** The active gates swing round to face you as you approach, snapping to a direction the road allows. */
@@ -660,7 +664,7 @@ function progress(gateIdx, st) {
   return gateIdx + Math.max(0, 1 - Math.hypot(st.x - g.x, st.z - g.z) / seg);
 }
 function rivalStep(dt) {
-  if (!race.running || rival.done) { pose(rivalCar, rival, 0); return; }
+  if (!race.running || rival.done || rival.dead) { if (!rival.dead) pose(rivalCar, rival, 0); return; }
   const [tx, tz] = PATH[rival.wp];
   const dx = tx - rival.x, dz = tz - rival.z, dist = Math.hypot(dx, dz);
   if (dist < 5 && rival.wp < PATH.length - 1) rival.wp++;
@@ -687,13 +691,162 @@ function rivalStep(dt) {
     if (rival.gate === gates.length) { rival.done = true; if (race.running) finishRace(false); }
   }
 }
-function bumpCars() {
+/* ---------- contact damage (1 vs 1) ----------
+   First touch: both cars crumple. Second touch: whoever got rammed explodes and
+   respawns at the last gate it passed. Then the count starts over. */
+const contact = { count: 0, cool: 0 };
+function bumpCars(dt) {
+  contact.cool = Math.max(0, contact.cool - dt);
+  drive.safe = Math.max(0, (drive.safe || 0) - dt);
+  rival.safe = Math.max(0, (rival.safe || 0) - dt);
+  if (drive.dead || rival.dead || !race.running) return;
   const dx = drive.x - rival.x, dz = drive.z - rival.z, d = Math.hypot(dx, dz);
-  if (d > 0 && d < 2.6) {
-    const push = (2.6 - d) / 2, nx = dx / d, nz = dz / d;
-    if (!hits(drive.x + nx * push, drive.z + nz * push)) { drive.x += nx * push; drive.z += nz * push; }
-    if (!hits(rival.x - nx * push, rival.z - nz * push)) { rival.x -= nx * push; rival.z -= nz * push; }
-    drive.speed *= 0.95; rival.speed *= 0.95;
+  if (!(d > 0 && d < 2.6)) return;
+  const push = (2.6 - d) / 2, nx = dx / d, nz = dz / d;
+  if (!hits(drive.x + nx * push, drive.z + nz * push)) { drive.x += nx * push; drive.z += nz * push; }
+  if (!hits(rival.x - nx * push, rival.z - nz * push)) { rival.x -= nx * push; rival.z -= nz * push; }
+  if (contact.cool > 0 || drive.safe > 0 || rival.safe > 0) { drive.speed *= 0.97; rival.speed *= 0.97; return; }
+
+  // who rammed whom: the car closing in faster along the line between them
+  const pv = drive.speed, rv = rival.speed;
+  const pClose = -(Math.sin(drive.vdir ?? drive.heading) * nx + Math.cos(drive.vdir ?? drive.heading) * nz) * pv;
+  const rClose = (Math.sin(rival.heading) * nx + Math.cos(rival.heading) * nz) * rv;
+  const hitPoint = new THREE.Vector3((drive.x + rival.x) / 2, 0.9, (drive.z + rival.z) / 2);
+  contact.count++;
+  contact.cool = 1.1;
+  drive.shake = 0.6;
+  drive.speed *= 0.6; rival.speed *= 0.6;
+  sparks(hitPoint);
+  if (contact.count === 1) {
+    dent(car, hitPoint); dent(rivalCar, hitPoint);
+    hint('Bang! Both cars dented. One more hit and someone blows up.');
+  } else {
+    const rivalWasRammed = pClose >= rClose;
+    explode(rivalWasRammed ? 'rival' : 'player');
+    contact.count = 0;
+  }
+}
+function resetDamage() {
+  contact.count = 0; contact.cool = 0;
+  drive.dead = false; drive.safe = 0;
+  if (car.userData.dented) rebuildCar();
+  if (rivalCar.userData.dented) rebuildRival();
+  car.visible = true;
+}
+function rebuildRival() {
+  const old = rivalCar;
+  rivalCar = buildCar(RIVAL_LOOK);
+  rivalCar.visible = old.visible;
+  scene.remove(old);
+  scene.add(rivalCar);
+  pose(rivalCar, rival, 0);
+}
+
+/** Crumple the shell around a world-space impact point. */
+function dent(obj, worldPoint) {
+  obj.updateMatrixWorld(true);
+  for (const m of obj.userData.shell) {
+    const local = m.worldToLocal(worldPoint.clone());
+    const pos = m.geometry.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      const dist = v.distanceTo(local);
+      if (dist > 1.6) continue;
+      const k = (1.6 - dist) / 1.6;
+      v.lerp(new THREE.Vector3(0, 0, 0), k * 0.22);            // pushed in towards the middle
+      v.x += (Math.random() - 0.5) * 0.12 * k; v.y += (Math.random() - 0.5) * 0.1 * k;
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    m.geometry.computeVertexNormals();
+  }
+  obj.userData.body.rotation.y = (Math.random() - 0.5) * 0.08; // knocked slightly out of true
+  obj.userData.dented = true;
+}
+
+/* explosions, debris, sparks, and a smoking bonnet on dented cars */
+const debris = [];
+function sparks(at) {
+  for (let k = 0; k < 16; k++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), new THREE.MeshBasicMaterial({ color: k % 2 ? 0xffd23d : 0xff7a3d }));
+    m.position.copy(at);
+    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 12, Math.random() * 7, (Math.random() - 0.5) * 12);
+    m.userData.life = 0.5;
+    scene.add(m); debris.push(m);
+  }
+}
+function explode(who) {
+  const st = who === 'player' ? drive : rival;
+  const obj = who === 'player' ? car : rivalCar;
+  const color = who === 'player' ? trip.car.body : RIVAL_LOOK.body;
+  const at = new THREE.Vector3(st.x, 1, st.z);
+  // fireball
+  for (let k = 0; k < 22; k++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.5 + Math.random() * 0.7, 10, 8), new THREE.MeshBasicMaterial({ color: [0xffd23d, 0xff7a3d, 0xd8321f][k % 3], transparent: true, opacity: 0.95 }));
+    m.position.copy(at).add(new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random(), (Math.random() - 0.5) * 1.5));
+    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 6, 2 + Math.random() * 5, (Math.random() - 0.5) * 6);
+    m.userData.life = 0.9;
+    scene.add(m); puffs.push(m);
+  }
+  // body panels flying off
+  for (let k = 0; k < 12; k++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.3 + Math.random() * 0.6, 0.12, 0.3 + Math.random() * 0.6), toon(k % 3 ? color : 0x222222));
+    m.position.copy(at);
+    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 16, 5 + Math.random() * 9, (Math.random() - 0.5) * 16);
+    m.userData.spin = new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+    m.userData.life = 1.6;
+    m.castShadow = true;
+    scene.add(m); debris.push(m);
+  }
+  obj.visible = false;
+  st.dead = true;
+  st.speed = 0;
+  drive.shake = who === 'player' ? 1.2 : Math.max(drive.shake, 0.7);
+  if (drift.on) endDrift(true);
+  hint(who === 'player' ? 'BOOM! Ah Beng wrecked you. Back to your last gate…' : 'BOOM! Ah Beng is wrecked. He restarts from his last gate.');
+  setTimeout(() => respawn(who), 1200);
+}
+function respawn(who) {
+  if (!race.running) return;
+  const passed = who === 'player' ? race.idx : rival.gate;
+  const g = passed > 0 ? gates[passed - 1] : null;
+  const spot = g ? { x: g.x, z: g.z, heading: g.ang, seg: g.seg } : { x: START.x, z: START.z, heading: 0, seg: 1 };
+  if (who === 'player') {
+    Object.assign(drive, { x: spot.x, z: spot.z, heading: spot.heading, vdir: spot.heading, speed: 0, steer: 0, boost: 0, dead: false, safe: 2 });
+    rebuildCar();
+    car.visible = true;
+    camPos.set(drive.x - Math.sin(drive.heading) * 11, 7.5, drive.z - Math.cos(drive.heading) * 11);
+  } else {
+    Object.assign(rival, { x: spot.x, z: spot.z, heading: spot.heading, speed: 0, steer: 0, wp: spot.seg, dead: false, safe: 2 });
+    rebuildRival();
+    rivalCar.visible = true;
+  }
+}
+function damageFx(dt) {
+  for (let k = debris.length - 1; k >= 0; k--) {
+    const m = debris[k];
+    m.userData.v.y -= 22 * dt;
+    m.position.addScaledVector(m.userData.v, dt);
+    if (m.position.y < 0.1) { m.position.y = 0.1; m.userData.v.multiplyScalar(0.5); m.userData.v.y *= -0.3; }
+    if (m.userData.spin) { m.rotation.x += m.userData.spin.x * dt; m.rotation.z += m.userData.spin.z * dt; }
+    m.userData.life -= dt;
+    if (m.userData.life <= 0) { scene.remove(m); debris.splice(k, 1); }
+  }
+  // invulnerable cars blink; dented cars smoke from the bonnet
+  const blink = Math.floor(performance.now() / 120) % 2 === 0;
+  if (!drive.dead) car.visible = !(drive.safe > 0) || blink;
+  if (!rival.dead && race.mode === 'duel' && (race.running || race.countingDown)) rivalCar.visible = !(rival.safe > 0) || blink;
+  damageFx.t = (damageFx.t || 0) - dt;
+  if (damageFx.t <= 0) {
+    damageFx.t = 0.12;
+    for (const [obj, st] of [[car, drive], [rivalCar, rival]]) {
+      if (!obj.userData.dented || st.dead || !obj.visible) continue;
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.25 + Math.random() * 0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x6b6660, transparent: true, opacity: 0.6 }));
+      puff.position.set(st.x + Math.sin(st.heading) * 1.4, 1.3, st.z + Math.cos(st.heading) * 1.4);
+      puff.userData.v = new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.5, (Math.random() - 0.5) * 0.6);
+      puff.userData.life = 0.9;
+      scene.add(puff); puffs.push(puff);
+    }
   }
 }
 
@@ -712,7 +865,8 @@ function startRace(mode) {
   race.mode = mode;
   const duel = mode === 'duel';
   Object.assign(drive, { x: START.x - (duel ? 2.6 : 0), z: START.z, heading: 0, vdir: 0, speed: 0, steer: 0, boost: 0 });
-  Object.assign(rival, { x: START.x + 2.6, z: START.z, heading: 0, speed: 0, steer: 0, wp: 1, gate: 0, done: false });
+  Object.assign(rival, { x: START.x + 2.6, z: START.z, heading: 0, speed: 0, steer: 0, wp: 1, gate: 0, done: false, dead: false, safe: 0 });
+  resetDamage();
   rivalCar.visible = duel;
   pose(rivalCar, rival, 0);
   camPos.set(drive.x, 7.5, drive.z - 11);
@@ -774,6 +928,8 @@ function finishRace(playerFirst) {
 }
 function abortRace() {
   race.running = race.countingDown = false;
+  rival.dead = false;
+  resetDamage();
   arrow.visible = false;
   rivalCar.visible = false;
   gates.forEach((g) => { g.obj.visible = false; });
@@ -894,13 +1050,13 @@ $('#modeTrial').addEventListener('click', () => startRace('trial'));
 $('#modeDuel').addEventListener('click', () => startRace('duel'));
 $('#raceMenuClose').addEventListener('click', () => { $('#raceMenu').hidden = true; canvas.focus(); });
 $('#raceAgain').addEventListener('click', () => startRace(race.mode));
-$('#freeRoam').addEventListener('click', () => { $('#result').hidden = true; rivalCar.visible = false; canvas.focus(); });
+$('#freeRoam').addEventListener('click', () => { $('#result').hidden = true; rival.dead = false; resetDamage(); rivalCar.visible = false; canvas.focus(); });
 $('#garageBtn').addEventListener('click', openGarage);
 $('#garageDone').addEventListener('click', closeGarage);
 $('#startDrive').addEventListener('click', () => { $('#intro').hidden = true; canvas.focus(); hint('Drive into a glowing ring to stop at a café.'); });
 canvas.tabIndex = 0;
 if (PREVIEW) { // handy for poking at the preview from devtools
-  window.__trip = { drive, rival, race, gates, camera, frame: () => { step(0.016); follow(1); renderer.render(scene, camera); } };
+  window.__trip = { drive, rival, race, gates, camera, contact, get car() { return car; }, get rivalCar() { return rivalCar; }, frame: () => { step(0.016); follow(1); renderer.render(scene, camera); } };
 }
 
 /* ---------- intro gate ---------- */
@@ -937,7 +1093,8 @@ function tick() {
 function sim(dt) {
   const t = (simTime += dt);
   step(dt);
-  if (rivalCar.visible) { rivalStep(dt); bumpCars(); }
+  if (race.mode === 'duel' && (race.running || race.countingDown)) { rivalStep(dt); bumpCars(dt); }
+  damageFx(dt);
   follow(dt);
   checkCafes();
   checkGates();
