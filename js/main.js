@@ -1,4 +1,5 @@
 import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js?v=20260928b';
+import { sound, bindMuteButton } from './audio.js?v=20260928b';
 
 /* ---------- personalise here ---------- */
 const CONFIG = { name: 'markinko202-sys', github: 'https://github.com/markinko202-sys' };
@@ -70,7 +71,7 @@ function renderWallet(what) {
   if (what === 'coins') { bump($('#coinCount').parentElement); bump($('#gCoins').parentElement); }
   if (what === 'dish') bump($('#dishCount').parentElement);
 }
-function addCoins(n) { state.coins += n; save(); renderWallet('coins'); renderShop(); }
+function addCoins(n) { state.coins += n; save(); renderWallet('coins'); renderShop(); if (n >= 5) sound.coin(); }
 
 /* ---------- dishes ---------- */
 const ODDS = {
@@ -223,6 +224,8 @@ function loop(now) {
     const left = 60000 - run.elapsed;
     t.textContent = fmt(left);
     t.classList.toggle('low', left < 10000 && !frozen);
+    const sec = Math.ceil(left / 1000);
+    if (left < 10000 && !frozen && !run.paused && sec !== run.lastTick) { run.lastTick = sec; sound.tick(); } // last ten seconds
     if (left <= 0) { endGame(); return; }
   } else {
     t.textContent = fmt(run.elapsed);
@@ -238,6 +241,7 @@ function answer(k) {
   run.locked = true;
   run.paused = true;
   const q = QUESTIONS[run.q], ok = k === q.a;
+  if (ok) sound.correct(); else sound.wrong();
   $$('.opt').forEach((b) => {
     b.disabled = true;
     if (+b.dataset.k === q.a) b.classList.add('right');
@@ -259,6 +263,7 @@ function answer(k) {
       giveDish(id);
       run.won.push(id);
       toast(`<b>${dish(id).name}</b> for 5 correct!`, id);
+      sound.reward();
     }
   } else {
     run.streak = 0;
@@ -298,6 +303,7 @@ function useHint(id) {
   else if (state.coins >= h.price) { state.coins -= h.price; renderWallet('coins'); }
   else return;
   run.used[id] = true;
+  sound.hint();
   save();
   renderShop();
 
@@ -374,6 +380,7 @@ function endGame() {
     verdict = m === 'blitz' ? `${run.correct} right in 60 seconds.` : run.correct >= 10 ? 'That’s a proper streak.' : 'One life only, lah.';
   }
   if (bonus) addCoins(bonus);
+  if (run.won.length) (run.correct === 5 && isSet(m) ? sound.fanfare() : sound.reward()); else sound.lose();
   run.coinsWon += bonus;
 
   state.runs.unshift({ mode: m, cat: run.cat, score: isSet(m) ? `${run.correct}/5` : `${run.correct}`, time: Math.round(run.elapsed), won: run.won.length, at: Date.now() });
@@ -503,6 +510,7 @@ function renderTrip() {
 $('#tripCard').addEventListener('click', (e) => { if ($('#tripCard').classList.contains('locked')) e.preventDefault(); });
 
 function sell(id, n) {
+  sound.sell();
   const have = state.inv[id] || 0;
   n = Math.min(n, have);
   if (!n) return;
@@ -550,6 +558,7 @@ $('#shopList').addEventListener('click', (e) => {
   if (state.coins < h.price) return;
   state.coins -= h.price;
   state.hints[h.id] = (state.hints[h.id] || 0) + 1;
+  sound.buy();
   save();
   renderWallet('coins');
   renderShop();
@@ -590,6 +599,12 @@ function renderAll() {
   renderRecords();
 }
 
+bindMuteButton($('#soundBtn'));
+sound.music('calm');
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button, a.btn');
+  if (b && !b.matches('.opt, .hint-btn, [data-sell], [data-buy], #soundBtn')) sound.click();
+});
 $('#authorName').textContent = CONFIG.name;
 $('#githubLink').href = CONFIG.github;
 renderAll();

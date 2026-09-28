@@ -56,6 +56,9 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 /* ---------- HUD ---------- */
 .hud-top { position: fixed; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); z-index: 10; display: flex; align-items: center; gap: 14px; }
 .back { font: 800 14px var(--f-body); text-transform: uppercase; text-decoration: none; background: var(--card); border: var(--bw) solid var(--ink); padding: 8px 12px; box-shadow: 3px 3px 0 var(--ink); }
+.sound-btn { display: inline-grid; place-items: center; cursor: pointer; padding: 6px 10px; }
+.sound-btn svg { font-size: 20px; }
+.sound-btn[aria-pressed="false"] { background: #eadfc6; }
 .trip-title { margin: 0; font: 400 40px/1 var(--f-display); text-transform: uppercase; text-shadow: 3px 3px 0 var(--card); }
 .trip-title span { color: var(--red); }
 .preview-tag { font: 700 12px var(--f-mono); text-transform: uppercase; letter-spacing: 1px; background: var(--yellow); border: 2px solid var(--ink); padding: 3px 8px; transform: rotate(-4deg); }

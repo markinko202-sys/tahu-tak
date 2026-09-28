@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { inkify, buildDish, buildTowers, buildHibiscus } from './models.js?v=20260928b';
 import { DISHES } from './data.js?v=20260928b';
+import { sound, bindMuteButton } from './audio.js?v=20260928b';
 
 /* =========================================================
    Makan Trip — drive around the city, taste your dishes, race.
@@ -459,8 +460,9 @@ function step(dt) {
     renderDrift();
   }
   if (drift.on && !wantDrift) endDrift();
-  if (move(drive, dt)) { drive.shake = 0.5; if (drift.on) endDrift(true); }
+  if (move(drive, dt)) { drive.shake = 0.5; sound.bump(); if (drift.on) endDrift(true); }
   pose(car, drive, dt, throttle);
+  sound.car(drive.dead ? 0 : drive.speed, throttle, drift.on && drive.speed > 8 ? Math.min(1, slip / 0.7) : 0);
 }
 
 /* ---------- particles: shared geometry, per-particle material, capped count ---------- */
@@ -492,6 +494,7 @@ function endDrift(crashed = false) {
   const el = $('#drift');
   if (!crashed && drift.time > 0.8 && drift.points > 40) {
     drive.boost = 0.9;
+    sound.turbo();
     el.innerHTML = `Turbo! <b>+${Math.round(drift.points)}</b>`;
     el.classList.add('ready');
   } else if (crashed) {
@@ -572,6 +575,7 @@ function checkCafes() {
   }
 }
 function openCafe(c) {
+  sound.chime();
   current = c;
   drive.speed = 0;
   const d = DISHES.find((x) => x.id === c.dish);
@@ -591,6 +595,7 @@ function taste() {
   trip.tasted.push(current.dish);
   save();
   addCoins(5);
+  sound.taste();
   steam(current.stall);
   toast(`Sedap! ${DISHES.find((x) => x.id === current.dish).name} tasted · +5 coins`, current.dish);
   paintRings();
@@ -737,6 +742,7 @@ function bumpCars(dt) {
   sparks(hitPoint);
   if (contact.count === 1) {
     dent(car, rival.x, rival.z); dent(rivalCar, drive.x, drive.z);
+    sound.dent();
     hint('Bang! Both cars dented. One more hit and someone blows up.');
   } else {
     const rivalWasRammed = pClose >= rClose;
@@ -826,6 +832,7 @@ function explode(who) {
   }
   obj.visible = false;
   st.dead = true;
+  sound.explode();
   st.speed = 0;
   drive.shake = who === 'player' ? 1.2 : Math.max(drive.shake, 0.7);
   if (drift.on) endDrift(true);
@@ -834,6 +841,7 @@ function explode(who) {
 }
 function respawn(who) {
   if (!race.running) return;
+  sound.respawn();
   const passed = who === 'player' ? race.idx : rival.gate;
   const g = passed > 0 ? gates[passed - 1] : null;
   const spot = g ? { x: g.x, z: g.z, heading: g.ang, seg: g.seg } : { x: START.x, z: START.z, heading: 0, seg: 1 };
@@ -886,6 +894,7 @@ function startRace(mode) {
   $('#raceMenu').hidden = true;
   $('#result').hidden = true;
   race.mode = mode;
+  sound.music('race');
   const duel = mode === 'duel';
   Object.assign(drive, { x: START.x - (duel ? 2.6 : 0), z: START.z, heading: 0, vdir: 0, speed: 0, steer: 0, boost: 0 });
   Object.assign(rival, { x: START.x + 2.6, z: START.z, heading: 0, speed: 0, steer: 0, wp: 1, gate: 0, done: false, dead: false, safe: 0 });
@@ -907,6 +916,7 @@ function startRace(mode) {
     if (!race.countingDown) return; // aborted
     cd.classList.toggle('go', k === 3);
     cd.innerHTML = `<span>${txt}</span>`;
+    if (k === 3) sound.go(); else sound.beep();
     if (k === 3) { race.countingDown = false; race.running = true; showGates(); setTimeout(() => { cd.hidden = true; }, 700); }
   }, k * 800));
 }
@@ -918,6 +928,7 @@ function checkGates() {
   const g = gates[race.idx];
   if (Math.hypot(drive.x - g.x, drive.z - g.z) < GATE_R) {
     race.idx++;
+    sound.gate();
     $('#raceCp').textContent = `Gate ${race.idx}/${gates.length}`;
     if (race.idx === gates.length) return finishRace(true);
     showGates();
@@ -933,23 +944,27 @@ function finishRace(playerFirst) {
   gates.forEach((g) => { g.obj.visible = false; });
   $('#raceHud').hidden = true;
   if (race.mode === 'duel') {
-    if (playerFirst) { trip.wins++; addCoins(20); } else trip.losses++;
+    if (playerFirst) { trip.wins++; addCoins(20); sound.win(); } else { trip.losses++; sound.lose(); }
     save();
     $('#resTitle').textContent = playerFirst ? 'Menang! You win' : 'Kalah! Ah Beng wins';
     $('#resTime').textContent = fmt(race.t);
     $('#resBest').textContent = playerFirst ? '+20 coins. Ah Beng wants a rematch.' : 'He took the corners faster. Try again?';
   } else {
     const pb = !trip.best || race.t < trip.best;
-    if (pb) { trip.best = Math.round(race.t); save(); addCoins(10); }
+    if (pb) { trip.best = Math.round(race.t); save(); addCoins(10); sound.win(); } else sound.gate();
     $('#resTitle').textContent = pb ? 'Rekod baru!' : 'Finish!';
     $('#resTime').textContent = fmt(race.t);
     $('#resBest').textContent = pb ? 'New best lap! +10 coins' : `Best: ${fmt(trip.best)}`;
   }
   $('#result').hidden = false;
   $('#raceAgain').focus();
+  sound.music('drive');
+  sound.rival(0, null);
 }
 function abortRace() {
   race.running = race.countingDown = false;
+  sound.music('drive');
+  sound.rival(0, null);
   rival.dead = false;
   resetDamage();
   arrow.visible = false;
@@ -1088,6 +1103,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyR' && !modalOpen()) openRaceMenu();
   if (e.code === 'KeyG' && !modalOpen()) openGarage();
+  if (e.code === 'KeyH' && !e.repeat) sound.horn();
 });
 addEventListener('keyup', (e) => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
 addEventListener('blur', () => Object.keys(keys).forEach((k) => { keys[k] = false; }));
@@ -1114,6 +1130,9 @@ $('#garageBtn').addEventListener('click', openGarage);
 $('#garageDone').addEventListener('click', closeGarage);
 $('#startDrive').addEventListener('click', () => { $('#intro').hidden = true; canvas.focus(); hint('Drive into a glowing ring to stop at a café.'); });
 canvas.tabIndex = 0;
+bindMuteButton($('#soundBtn'));
+sound.music('drive');
+document.addEventListener('click', (e) => { if (e.target.closest('button') && !e.target.closest('#soundBtn, #touch')) sound.click(); });
 if (PREVIEW) { // handy for poking at the preview from devtools
   window.__trip = { drive, rival, race, gates, camera, contact, get car() { return car; }, get rivalCar() { return rivalCar; }, frame: () => { step(0.016); follow(1); renderer.render(scene, camera); } };
 }
@@ -1168,7 +1187,7 @@ function tick() {
 function sim(dt) {
   const t = (simTime += dt);
   step(dt);
-  if (race.mode === 'duel' && (race.running || race.countingDown)) { rivalStep(dt); bumpCars(dt); }
+  if (race.mode === 'duel' && (race.running || race.countingDown)) { rivalStep(dt); bumpCars(dt); sound.rival(rival.dead ? 0 : rival.speed, Math.hypot(rival.x - drive.x, rival.z - drive.z)); }
   damageFx(dt);
   follow(dt);
   checkCafes();

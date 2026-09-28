@@ -79,6 +79,9 @@ main, footer { position: relative; }
 .pill svg { font-size: 18px; }
 .pill.bump { animation: bump .5s; }
 @keyframes bump { 40% { transform: scale(1.25) rotate(-4deg); background: var(--yellow); } }
+.sound-btn { cursor: pointer; padding: 4px 10px; }
+.sound-btn svg { font-size: 18px; }
+.sound-btn[aria-pressed="false"] { background: var(--paper-2); color: var(--ink-soft); }
 .coin-ico { width: 16px; height: 16px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--ink); box-shadow: inset -2px -2px 0 #c98a00; flex: none; }
 
 /* ---------- buttons ---------- */
