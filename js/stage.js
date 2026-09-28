@@ -81,7 +81,7 @@ export function initStage(canvas, { dishIds, reducedMotion }) {
   };
 
   // rough world size of each prop at scale 1, so it fills its placeholder
-  const NOMINAL = { towers: 3.3, tingkat: 3.6, coin: 2.3, hibiscus: 2.5, susan: 3.0 };
+  const NOMINAL = { towers: 2.75, tingkat: 3.6, coin: 2.3, hibiscus: 2.5, susan: 3.0 };
   const props = [...document.querySelectorAll('[data-prop]')].map((el) => {
     const obj = factories[el.dataset.prop]();
     obj.visible = false;
@@ -99,8 +99,20 @@ export function initStage(canvas, { dishIds, reducedMotion }) {
   resize();
   window.addEventListener('resize', resize);
 
-  const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-  window.addEventListener('pointermove', (e) => { mouse.tx = e.clientX / W - 0.5; mouse.ty = e.clientY / H - 0.5; }, { passive: true });
+  // mouse: position for parallax, horizontal movement for spinning the towers
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0, lastX: null };
+  const spin = { angle: 0, vel: 0 };
+  window.addEventListener('pointermove', (e) => {
+    mouse.tx = e.clientX / W - 0.5;
+    mouse.ty = e.clientY / H - 0.5;
+    if (mouse.lastX !== null && !reducedMotion) {
+      // moving left turns them left, moving right turns them right
+      spin.vel += (e.clientX - mouse.lastX) * 0.00045;
+      spin.vel = Math.max(-0.12, Math.min(0.12, spin.vel));
+    }
+    mouse.lastX = e.clientX;
+  }, { passive: true });
+  window.addEventListener('pointerleave', () => { mouse.lastX = null; });
 
   const ease = (t) => t * t * (3 - 2 * t);
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -134,8 +146,11 @@ export function initStage(canvas, { dishIds, reducedMotion }) {
 
       switch (pr.type) {
         case 'towers':
-          o.rotation.y = -0.5 + s * Math.PI * 1.4 + mouse.x * 0.4 + t * 0.05;
-          o.rotation.x = 0.08 + mouse.y * 0.15;
+          spin.angle += spin.vel;
+          spin.vel *= 0.94; // inertia, settles smoothly
+          o.rotation.y = -0.5 + s * Math.PI * 0.8 + spin.angle + mouse.x * 0.6 + t * 0.03;
+          o.rotation.x = 0.06 + mouse.y * 0.1;
+          o.rotation.z = -spin.vel * 0.6;
           break;
         case 'tingkat': {
           const open = ease(clamp((s - 0.2) * 2.5));

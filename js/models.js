@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ---------- toon materials + ink outline (matches the printed look) ---------- */
 const gradient = new THREE.DataTexture(new Uint8Array([110, 110, 110, 255, 190, 190, 190, 255, 255, 255, 255, 255]), 3, 1);
@@ -250,30 +251,117 @@ function fit(inner, size = 1.8) {
 export const buildDish = (id, size) => fit(inkify(DISH[id]()), size);
 
 /* ---------- scroll props ---------- */
+/* ---------- Petronas Twin Towers ----------
+   Floor plan: two squares rotated 45° (an 8-point star) with the inner corners
+   filled by arcs. The shaft steps back in tiers, every floor is a glass ribbon
+   between steel bands, and fins run up the star points. */
+function petronasShape(R) {
+  const shape = new THREE.Shape();
+  const inner = R * 0.765; // where the two squares cross
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2, b = a + Math.PI / 8, c = a + Math.PI / 4;
+    const p = [Math.cos(a) * R, Math.sin(a) * R];
+    if (k === 0) shape.moveTo(...p); else shape.lineTo(...p);
+    const i1 = [Math.cos(b - 0.12) * inner, Math.sin(b - 0.12) * inner];
+    const i2 = [Math.cos(b + 0.12) * inner, Math.sin(b + 0.12) * inner];
+    shape.lineTo(...i1);
+    shape.quadraticCurveTo(Math.cos(b) * R * 0.9, Math.sin(b) * R * 0.9, ...i2);
+    if (k === 7) shape.lineTo(Math.cos(c) * R, Math.sin(c) * R);
+  }
+  return shape;
+}
+
+const slab = (R, h) => {
+  const g = new THREE.ExtrudeGeometry(petronasShape(R), { depth: h, bevelEnabled: false, curveSegments: 6 });
+  g.rotateX(-Math.PI / 2); // extrude upward
+  return g;
+};
+
+const flat = (g) => (g.index ? g.toNonIndexed() : g);
+
 export function buildTowers() {
-  const g = new THREE.Group();
-  const steel = M(0xd9dee4), dark = M(0x7c8793);
-  const tower = (x) => {
+  const steel = M(0xe4e8ee), glass = M(0x5f86a8), lit = M(0xffd23d, { emissive: 0xf5b700, emissiveIntensity: 0.6 });
+  const FLOOR = 0.085;
+  const tiers = [[0.62, 52], [0.57, 10], [0.52, 8], [0.46, 7], [0.39, 6], [0.31, 5]]; // [radius, floors]
+
+  function tower(x, seedOffset) {
     const t = new THREE.Group();
-    const tiers = [[0.5, 2.4], [0.45, 0.9], [0.4, 0.7], [0.34, 0.55], [0.27, 0.45], [0.2, 0.35], [0.13, 0.3]];
-    let y = 0;
-    tiers.forEach(([r, h], i) => {
-      t.add(mesh(new THREE.CylinderGeometry(r, r * 1.02, h, 8), i % 2 ? dark : steel, 0, y + h / 2, 0));
+    const glassParts = [], steelParts = [], litParts = [];
+    let y = 0, rnd = seedOffset;
+    const r01 = () => ((rnd = (rnd * 16807) % 2147483647) / 2147483647);
+
+    for (const [R, floors] of tiers) {
+      const h = floors * FLOOR;
+      glassParts.push(slab(R * 0.965, h).translate(0, y, 0));
+      for (let f = 0; f <= floors; f++) {
+        steelParts.push(slab(R, FLOOR * 0.3).translate(0, y + f * FLOOR - FLOOR * 0.15, 0));
+        if (f < floors && r01() < 0.16) {
+          const a = Math.floor(r01() * 16) * (Math.PI / 8) + Math.PI / 16;
+          const win = new THREE.BoxGeometry(R * 0.28, FLOOR * 0.55, 0.01);
+          win.rotateY(-a + Math.PI / 2);
+          win.translate(Math.cos(a) * R * 0.87, y + f * FLOOR + FLOOR * 0.5, Math.sin(a) * R * 0.87);
+          litParts.push(win);
+        }
+      }
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const fin = new THREE.BoxGeometry(0.035, h, 0.035);
+        fin.translate(Math.cos(a) * R * 1.005, y + h / 2, -Math.sin(a) * R * 1.005);
+        steelParts.push(fin);
+      }
+      steelParts.push(slab(R * 1.03, 0.05).translate(0, y + h, 0));
       y += h;
-    });
-    t.add(mesh(new THREE.ConeGeometry(0.06, 1.3, 6), steel, 0, y + 0.65, 0));
+    }
+
+    const ring = (r, yy, tube = 0.025) => new THREE.TorusGeometry(r, tube, 8, 32).rotateX(Math.PI / 2).translate(0, yy, 0);
+    steelParts.push(new THREE.CylinderGeometry(0.2, 0.26, 0.3, 16).translate(0, y + 0.15, 0));
+    for (let i = 0; i < 4; i++) steelParts.push(ring(0.19 - i * 0.03, y + 0.35 + i * 0.12));
+    steelParts.push(new THREE.CylinderGeometry(0.07, 0.16, 0.8, 16).translate(0, y + 0.7, 0));
+    steelParts.push(new THREE.SphereGeometry(0.09, 16, 12).translate(0, y + 1.2, 0));
+    steelParts.push(ring(0.11, y + 1.2, 0.012));
+    steelParts.push(new THREE.CylinderGeometry(0.012, 0.04, 1.6, 8).translate(0, y + 2.0, 0));
+
+    const merged = (parts, mat) => {
+      const m = new THREE.Mesh(mergeGeometries(parts.map(flat)), mat);
+      m.userData.noInk = true; // outlined below with a sideways-only shell
+      return m;
+    };
+    const core = merged(glassParts, glass);
+    // ink outline: thicken only horizontally, so the shell hugs the shaft instead of growing upward
+    const outline = new THREE.Mesh(core.geometry, INK);
+    outline.scale.set(1.09, 1, 1.09);
+    outline.userData.noInk = true;
+    core.add(outline);
+    t.add(core, merged(steelParts, steel));
+    if (litParts.length) t.add(merged(litParts, lit));
     t.position.x = x;
     return t;
-  };
-  g.add(tower(-0.8), tower(0.8));
-  g.add(mesh(new THREE.BoxGeometry(1.2, 0.16, 0.24), M(0xd8321f), 0, 2.05, 0)); // skybridge
-  for (const s of [-1, 1]) {
-    const leg = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.05, 5), dark, s * 0.3, 1.6, 0);
-    leg.rotation.z = s * 0.55;
+  }
+
+  const g = new THREE.Group();
+  g.add(tower(-1.05, 11), tower(1.05, 29));
+
+  // skybridge: double deck between floors 41–42 with an inverted-V support
+  const bridgeY = 41 * FLOOR;
+  g.add(mesh(new THREE.BoxGeometry(1.0, 0.16, 0.22), M(0xd8321f), 0, bridgeY, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.04, 0.03, 0.25), steel, 0, bridgeY + 0.09, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.04, 0.03, 0.25), steel, 0, bridgeY - 0.09, 0));
+  const legTop = new THREE.Vector3(0, bridgeY - 0.1, 0);
+  for (const sgn of [-1, 1]) {
+    const foot = new THREE.Vector3(sgn * 0.5, 29 * FLOOR, 0);
+    const leg = mesh(new THREE.CylinderGeometry(0.022, 0.03, legTop.distanceTo(foot), 8), steel);
+    leg.position.copy(legTop).add(foot).multiplyScalar(0.5);
+    leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), foot.clone().sub(legTop).normalize());
     g.add(leg);
   }
-  g.add(mesh(new THREE.CylinderGeometry(1.7, 1.8, 0.2, 10), M(0x0e6b47), 0, -0.1, 0));
-  return fit(inkify(g), 3.4);
+
+  // KLCC park
+  g.add(mesh(new THREE.CylinderGeometry(2.3, 2.4, 0.12, 40), M(0x0e6b47), 0, -0.06, 0));
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + 0.2;
+    g.add(mesh(new THREE.SphereGeometry(0.13 + (i % 3) * 0.03, 12, 8), M(i % 2 ? 0x4cc552 : 0x2f8f46), Math.cos(a) * 2.0, 0.08, Math.sin(a) * 1.3 + 0.35));
+  }
+  return fit(inkify(g), 3.6);
 }
 
 export function buildTingkat() {
