@@ -1,5 +1,7 @@
 # Tahu Tak?
 
+**Play it:** https://markinko202-sys.github.io/tahu-tak/
+
 A Malaysia trivia game you can eat. Pass a set of questions to win a hawker dish. Keep your dishes or sell them at the daily market for coins, then spend the coins on hints.
 
 ## Gameplay

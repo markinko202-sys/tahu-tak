@@ -1,7 +1,7 @@
 import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js';
 
 /* ---------- personalise here ---------- */
-const CONFIG = { name: 'Artemiy', github: 'https://github.com/' };
+const CONFIG = { name: 'markinko202-sys', github: 'https://github.com/markinko202-sys' };
 
 /* ---------- state ---------- */
 const KEY = 'tahu-tak-v1';
