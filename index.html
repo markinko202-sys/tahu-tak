@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Makan Quest — Malaysian Hawker Food in 3D</title>
+  <meta name="description" content="A gamified 3D tour of Malaysian hawker food. Collect dishes, pour the perfect teh tarik, level up to Food Sultan." />
+  <meta name="theme-color" content="#0c0a1d" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#menu">Skip to the menu</a>
+
+  <!-- ===== HUD ===== -->
+  <header class="hud" id="hud">
+    <a class="logo" href="#top" aria-label="Makan Quest home">MAKAN<span>/</span>QUEST</a>
+    <nav class="hud-nav" aria-label="Sections">
+      <a href="#menu">Menu</a>
+      <a href="#pour">Pour</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#passport">Passport</a>
+    </nav>
+    <div class="hud-stats">
+      <div class="lvl" id="lvlChip"><span class="lvl-num" id="lvlNum">1</span><span class="lvl-title" id="lvlTitle">Hungry Tourist</span></div>
+      <div class="xp" role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="xpBar">
+        <div class="xp-fill" id="xpFill"></div>
+        <span class="xp-text" id="xpText">0 XP</span>
+      </div>
+      <div class="stamps-count" title="Dishes collected">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-1.5 1-3M12 7c0-1.5 1-1.5 1-3M16 7c0-1.5 1-1.5 1-3"/></svg>
+        <span id="stampCount">0/6</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="hero" data-section>
+      <canvas id="scene" aria-hidden="true"></canvas>
+      <div class="hero-copy">
+        <p class="kicker"><span class="dot"></span> Pasar malam is open · 7pm – late</p>
+        <h1>Eat your way<br />through <em>Malaysia</em></h1>
+        <p class="lead">Six legendary hawker dishes are floating over the night market. Tap them to collect stamps, pour the perfect teh tarik and climb from <b>Hungry Tourist</b> to <b>Food Sultan</b>.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#menu">Start the quest</a>
+          <span class="hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11V5a2 2 0 1 1 4 0v5"/><path d="M13 10a2 2 0 1 1 4 0v2a2 2 0 1 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3l-3-5a2 2 0 0 1 3-2l2 2"/></svg>Tap a floating dish</span>
+        </div>
+        <ul class="hero-meta">
+          <li><b>6</b> dishes</li><li><b>7</b> badges</li><li><b>6</b> levels</li>
+        </ul>
+      </div>
+      <div class="tooltip" id="tooltip" hidden></div>
+      <div class="webgl-fallback" id="webglFallback" hidden>3D view unavailable on this device — the quest still works below.</div>
+    </section>
+
+    <!-- ===== MENU ===== -->
+    <section class="section" id="menu" data-section>
+      <div class="section-head">
+        <p class="eyebrow">01 — The menu</p>
+        <h2>Collect all six stamps</h2>
+        <p class="section-sub">Each dish you collect earns <b>+50 XP</b>. Filter by where to find the best version.</p>
+      </div>
+      <div class="filters" role="group" aria-label="Filter by region">
+        <button class="chip" aria-pressed="true" data-filter="all">All</button>
+        <button class="chip" aria-pressed="false" data-filter="kl">KL &amp; Selangor</button>
+        <button class="chip" aria-pressed="false" data-filter="penang">Penang</button>
+        <button class="chip" aria-pressed="false" data-filter="melaka">Melaka</button>
+      </div>
+      <div class="grid" id="menuGrid"></div>
+    </section>
+
+    <!-- ===== TEH TARIK GAME ===== -->
+    <section class="section section-alt" id="pour" data-section>
+      <div class="section-head">
+        <p class="eyebrow">02 — Mini game</p>
+        <h2>Pull the perfect teh tarik</h2>
+        <p class="section-sub">Hold to pour from arm's length. Release when the foam lands inside the gold band. Perfect pours earn <b>+40 XP</b>.</p>
+      </div>
+      <div class="tarik">
+        <div class="tarik-stage" aria-hidden="true">
+          <div class="pitcher" id="pitcher"></div>
+          <div class="stream" id="stream"></div>
+          <div class="cup" id="cup">
+            <div class="target" id="target"></div>
+            <div class="fill" id="fill"><div class="foam"></div></div>
+          </div>
+          <div class="splash" id="splash"></div>
+        </div>
+        <div class="tarik-panel">
+          <p class="tarik-status" id="tarikStatus" aria-live="polite">Hold the button (or Space) to pour.</p>
+          <button class="btn btn-primary btn-pour" id="pourBtn">Hold to pour</button>
+          <dl class="tarik-stats">
+            <div><dt>Pours</dt><dd id="statPours">0</dd></div>
+            <div><dt>Perfect</dt><dd id="statPerfect">0</dd></div>
+            <div><dt>Streak</dt><dd id="statStreak">0</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== QUIZ ===== -->
+    <section class="section" id="quiz" data-section>
+      <div class="section-head">
+        <p class="eyebrow">03 — Pop quiz</p>
+        <h2>Are you a local yet?</h2>
+        <p class="section-sub">Four questions, <b>+25 XP</b> each on your first run.</p>
+      </div>
+      <div class="quiz" id="quizBox" aria-live="polite"></div>
+    </section>
+
+    <!-- ===== PASSPORT ===== -->
+    <section class="section section-alt" id="passport" data-section>
+      <div class="section-head">
+        <p class="eyebrow">04 — Your progress</p>
+        <h2>Makan passport</h2>
+        <p class="section-sub">Stamps and badges are saved in this browser.</p>
+      </div>
+      <div class="passport">
+        <div class="stamp-grid" id="stampGrid"></div>
+        <ul class="badges" id="badgeList"></ul>
+      </div>
+      <button class="btn btn-ghost" id="resetBtn">Reset progress</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Built as a front-end showcase with <b>Three.js</b>, vanilla <b>JavaScript</b> and hand-written <b>CSS</b>. No frameworks, no images — every dish is modelled in code.</p>
+    <p class="footer-sub">© <span id="year"></span> <span id="authorName"></span> · <a id="githubLink" href="#">GitHub</a>
+      <button class="chili" id="chili" aria-label="A hidden chili — click me"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4c-1 1-1 2 0 3-4 0-6 3-8 7s-4 6-7 6c6 2 13-1 15-7 1-3 1-5 0-6 1 0 2-1 2-2"/></svg></button>
+    </p>
+  </footer>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
