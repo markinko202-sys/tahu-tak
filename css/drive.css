@@ -30,7 +30,8 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 :focus-visible { outline: 3px dashed var(--blue); outline-offset: 3px; }
-#world { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+#world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.touch, .touch button, .hud-bottom, .modal { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 
 /* ---------- buttons / pills ---------- */
 .btn {
@@ -121,7 +122,12 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
 .touch div { display: flex; gap: 12px; pointer-events: auto; }
 .touch button { width: 64px; height: 64px; border: var(--bw) solid var(--ink); background: rgba(255, 250, 240, .9); box-shadow: 4px 4px 0 var(--ink); font-size: 22px; touch-action: none; }
 .touch button.gas { background: var(--yellow); }
-.touch button.drift-btn { width: 76px; font: 800 13px var(--f-body); background: var(--red); color: #fff; }
+.touch button.drift-btn { font: 800 13px var(--f-body); background: var(--red); color: #fff; }
+/* right thumb: DRIFT on top, brake + gas below — fits a 320px-wide phone */
+.touch .touch-right { display: grid; grid-template-columns: 64px 64px; grid-template-areas: "drift drift" "down up"; gap: 10px; align-items: end; }
+.touch .touch-right [data-key="drift"] { grid-area: drift; width: auto; height: 48px; }
+.touch .touch-right [data-key="down"] { grid-area: down; }
+.touch .touch-right [data-key="up"] { grid-area: up; }
 .touch button.on { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
 @media (pointer: coarse) { .touch { display: flex; } }
 
@@ -156,7 +162,8 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
   .hud-bottom .btn { min-height: 34px; font-size: 12px; padding: 0 10px; box-shadow: 3px 3px 0 var(--ink); }
   .touch { bottom: max(56px, env(safe-area-inset-bottom)); padding: 0 max(14px, env(safe-area-inset-left)); }
   .touch button { width: 54px; height: 54px; }
-  .touch button.drift-btn { width: 64px; }
+  .touch .touch-right { grid-template-columns: 54px 54px; gap: 8px; }
+  .touch .touch-right [data-key="drift"] { height: 40px; }
   .race-time { font-size: 22px; }
   .race-cp, .race-pos { font-size: 18px; }
   .drift-meter { top: 80px; font-size: 22px; }

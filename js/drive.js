@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { inkify, buildDish, buildTowers, buildHibiscus } from './models.js';
-import { DISHES } from './data.js';
+import { inkify, buildDish, buildTowers, buildHibiscus } from './models.js?v=20260928b';
+import { DISHES } from './data.js?v=20260928b';
 
 /* =========================================================
    Makan Trip — drive around the city, taste your dishes, race.
@@ -1039,7 +1039,9 @@ function mmCar(st, look) {
   mm.fillStyle = hex(look.wheels === 0x222222 ? 0x16130e : look.wheels);
   for (const [x, y] of [[-4.4, 2.4], [3, 2.4], [-4.4, -5], [3, -5]]) mm.fillRect(x, y, 1.4, 2.6);
   mm.fillStyle = hex(look.body);
-  mm.beginPath(); mm.roundRect(-3.4, -6.5, 6.8, 13, 2); mm.fill(); mm.stroke();
+  mm.beginPath(); // hand-rolled rounded rect: ctx.roundRect is missing on older iOS Safari
+  mm.moveTo(-1.4, -6.5); mm.arcTo(3.4, -6.5, 3.4, 6.5, 2); mm.arcTo(3.4, 6.5, -3.4, 6.5, 2); mm.arcTo(-3.4, 6.5, -3.4, -6.5, 2); mm.arcTo(-3.4, -6.5, 3.4, -6.5, 2); mm.closePath();
+  mm.fill(); mm.stroke();
   mm.fillStyle = '#2b59c3'; mm.fillRect(-2.5, 2.4, 5, 2); // windscreen, facing forward
   const dot = ROOFS[look.roof]?.dot;
   if (dot) { mm.beginPath(); mm.arc(0, -1.6, 1.8, 0, Math.PI * 2); mm.fillStyle = dot; mm.fill(); mm.stroke(); }
@@ -1091,7 +1093,12 @@ addEventListener('keyup', (e) => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = fa
 addEventListener('blur', () => Object.keys(keys).forEach((k) => { keys[k] = false; }));
 document.querySelectorAll('#touch button').forEach((b) => {
   const set = (v) => { keys[b.dataset.key] = v; b.classList.toggle('on', v); };
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); set(true); });
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    set(true);
+    try { b.setPointerCapture(e.pointerId); } catch { /* some browsers refuse capture — the press still counts */ }
+  });
+  b.addEventListener('lostpointercapture', () => set(false));
   b.addEventListener('pointerup', () => set(false));
   b.addEventListener('pointercancel', () => set(false));
 });
@@ -1111,6 +1118,17 @@ if (PREVIEW) { // handy for poking at the preview from devtools
   window.__trip = { drive, rival, race, gates, camera, contact, get car() { return car; }, get rivalCar() { return rivalCar; }, frame: () => { step(0.016); follow(1); renderer.render(scene, camera); } };
 }
 
+/* ---------- ready: the intro button unlocks once everything above has loaded ---------- */
+$('#startDrive').disabled = false;
+$('#startDrive').textContent = 'Jom, jalan!';
+if (MOBILE) {
+  $('#intro .keys').innerHTML = `
+    <li><kbd>◀</kbd><kbd>▶</kbd> steer · <kbd>▲</kbd> gas · <kbd>▼</kbd> brake / reverse</li>
+    <li><kbd>DRIFT</kbd> hold through a corner, let go for a turbo</li>
+    <li><b>Garaj</b> paints your car · <b>Lumba</b> starts a race</li>
+    <li>Tip: turn your phone sideways for a wider view</li>`;
+}
+
 /* ---------- intro gate ---------- */
 if (PREVIEW) {
   $('#previewTag').hidden = false;
@@ -1126,12 +1144,17 @@ if (PREVIEW) {
 
 /* ---------- loop ---------- */
 function resize() {
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight;
+  const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  // portrait phones see a thin slice at 55°; widen the vertical FOV so the road still fits
+  camera.fov = camera.aspect < 0.8 ? 74 : camera.aspect < 1.3 ? 63 : 55;
   camera.updateProjectionMatrix();
 }
 resize();
 addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 250));
+window.visualViewport?.addEventListener('resize', resize);
 renderHud();
 
 const clock = new THREE.Clock();

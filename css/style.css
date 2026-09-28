@@ -48,7 +48,8 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 .skip:focus { left: 8px; }
 
 /* 3D layer sits above section fills but under content */
-#stage { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+/* sized to the *large* viewport so the mobile toolbar sliding away doesn't resize (and flash) the canvas */
+#stage { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; height: 100lvh; z-index: 1; pointer-events: none; }
 main, footer { position: relative; }
 .sec > *, .hero > *, .foot > * { position: relative; z-index: 2; }
 .prop { position: relative; z-index: 0 !important; pointer-events: none; }

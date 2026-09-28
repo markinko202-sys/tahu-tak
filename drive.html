@@ -9,7 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&family=Caveat+Brush&family=Public+Sans:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/drive.css" />
+  <link rel="stylesheet" href="css/drive.css?v=20260928b" />
+  <!-- import maps for older mobile Safari / Chrome -->
+  <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -70,7 +72,7 @@
         <li><kbd>G</kbd> garage — paint your car and pick a roof ornament</li>
         <li><kbd>Esc</kbd> leave a café or quit a race</li>
       </ul>
-      <button class="btn btn-red btn-big" id="startDrive">Jom, jalan!</button>
+      <button class="btn btn-red btn-big" id="startDrive" disabled>Loading the city…</button>
     </div>
   </div>
 
@@ -137,6 +139,20 @@
   </div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
-  <script type="module" src="js/drive.js"></script>
+  <script>
+    // if the 3D city can't start (old browser, no WebGL, flaky network) say so instead of "Loading…" forever
+    (function () {
+      function fail() {
+        var b = document.getElementById('startDrive');
+        if (!b || !b.disabled) return;
+        b.disabled = false;
+        b.textContent = 'Could not load — tap to retry';
+        b.onclick = function () { location.reload(); };
+      }
+      window.addEventListener('error', fail);
+      setTimeout(fail, 25000);
+    })();
+  </script>
+  <script type="module" src="js/drive.js?v=20260928b"></script>
 </body>
 </html>

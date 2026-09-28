@@ -1,4 +1,4 @@
-import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js';
+import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js?v=20260928b';
 
 /* ---------- personalise here ---------- */
 const CONFIG = { name: 'markinko202-sys', github: 'https://github.com/markinko202-sys' };
@@ -597,7 +597,7 @@ renderAll();
 // let the page paint first; building the 3D stage and dish photos can take a moment on phones
 await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 600 }) : setTimeout(r, 60)));
 try {
-  const { initStage } = await import('./stage.js');
+  const { initStage } = await import('./stage.js?v=20260928b');
   stage = initStage($('#stage'), { dishIds: DISHES.map((d) => d.id), reducedMotion });
   snapshots = stage.snapshots;
   renderKitchen();

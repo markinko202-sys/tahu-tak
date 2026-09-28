@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildDish, buildTowers, buildTingkat, buildCoin, buildHibiscus } from './models.js';
+import { buildDish, buildTowers, buildTingkat, buildCoin, buildHibiscus } from './models.js?v=20260928b';
 
 /**
  * One fixed, full-viewport WebGL canvas. Each 3D prop is pinned to an empty
@@ -96,7 +96,10 @@ export function initStage(canvas, { dishIds, reducedMotion }) {
 
   let W = 0, H = 0;
   function resize() {
-    W = window.innerWidth; H = window.innerHeight;
+    // measure the canvas itself (100lvh): the mobile toolbar sliding in/out no longer resizes it
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w === W && h === H) return;
+    W = w; H = h;
     renderer.setSize(W, H, false);
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
