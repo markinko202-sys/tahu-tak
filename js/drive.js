@@ -9,6 +9,8 @@ import { DISHES } from './data.js';
 const $ = (s) => document.querySelector(s);
 const PREVIEW = new URLSearchParams(location.search).has('preview');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// phones and tablets get a lighter profile; resolution then adapts to the real frame rate
+const MOBILE = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600;
 
 /* ---------- state (quiz progress is read, trip progress is its own key) ---------- */
 const QUIZ_KEY = 'tahu-tak-v1';
@@ -31,7 +33,9 @@ function addCoins(n) {
 /* ---------- renderer ---------- */
 const canvas = $('#world');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+const DPR_MAX = Math.min(window.devicePixelRatio, MOBILE ? 1.5 : 1.75);
+let dpr = MOBILE ? Math.min(DPR_MAX, 1.25) : DPR_MAX;
+renderer.setPixelRatio(dpr);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -82,13 +86,14 @@ const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
 /* ---------- scene ---------- */
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xf3dcc0, 90, 230);
-const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 400);
+scene.fog = MOBILE ? new THREE.Fog(0xf3dcc0, 60, 150) : new THREE.Fog(0xf3dcc0, 90, 230);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.5, MOBILE ? 170 : 400);
 scene.add(new THREE.HemisphereLight(0xfff1dc, 0x7a6a55, 1.35));
 const sun = new THREE.DirectionalLight(0xffd2a0, 2.1); // low evening sun
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 1, far: 200 });
+const SH = MOBILE ? 32 : 48;
+sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
+Object.assign(sun.shadow.camera, { left: -SH, right: SH, top: SH, bottom: -SH, near: 1, far: 200 });
 sun.shadow.bias = -0.0008;
 sun.shadow.normalBias = 0.08; // no striped self-shadowing on flat walls
 scene.add(sun, sun.target);
@@ -397,9 +402,14 @@ const drive = { x: START.x, z: START.z, heading: 0, vdir: 0, speed: 0, steer: 0,
 const keys = { up: false, down: false, left: false, right: false, drift: false };
 const angWrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const RADIUS = 1.3;
-const hits = (x, z) =>
-  Math.abs(x) > EDGE - RADIUS || Math.abs(z) > EDGE - RADIUS ||
-  colliders.some((c) => x > c.x0 - RADIUS && x < c.x1 + RADIUS && z > c.z0 - RADIUS && z < c.z1 + RADIUS);
+function hits(x, z, r = RADIUS) {
+  if (Math.abs(x) > EDGE - r || Math.abs(z) > EDGE - r) return true;
+  // the grid is regular, so only the nearest block can overlap the point
+  const i = Math.round(x / P + MID), j = Math.round(z / P + MID);
+  if (i < 0 || j < 0 || i >= N || j >= N) return false;
+  const cx = bc(i), cz = bc(j);
+  return Math.abs(x - cx) < B / 2 + r && Math.abs(z - cz) < B / 2 + r;
+}
 
 /** Move a car state along its travel direction, sliding along walls. Returns true on a hard hit. */
 function move(st, dt) {
@@ -453,6 +463,21 @@ function step(dt) {
   pose(car, drive, dt, throttle);
 }
 
+/* ---------- particles: shared geometry, per-particle material, capped count ---------- */
+const PUFF_GEO = new THREE.SphereGeometry(1, 8, 6), CHIP_GEO = new THREE.BoxGeometry(1, 1, 1);
+const PUFF_CAP = MOBILE ? 70 : 220;
+function particle(list, geo, color, size, pos, vel, life, opacity = 0.9) {
+  if (list === puffs && puffs.length >= PUFF_CAP) return null;
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity }));
+  m.scale.setScalar(size);
+  m.position.copy(pos);
+  m.userData = { v: vel, life, size };
+  scene.add(m);
+  list.push(m);
+  return m;
+}
+const FX = MOBILE ? 0.5 : 1; // particle density
+
 /* ---------- drift extras: score, mini-turbo, skid marks, tyre smoke ---------- */
 const drift = { on: false, time: 0, points: 0, fxT: 0 };
 function renderDrift() {
@@ -496,13 +521,9 @@ function tyreFx(dt) {
     _m.compose(_p.set(x, 0.04, z), _q, _s.set(1, 1, 1));
     skids.setMatrixAt(skidI, _m);
     skidI = (skidI + 1) % SKIDS;
-    if (Math.random() < 0.6) {
-      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.35 + Math.random() * 0.25, 8, 6), new THREE.MeshBasicMaterial({ color: 0xeeeae2, transparent: true, opacity: 0.7 }));
-      puff.position.set(x, 0.4, z);
-      puff.userData.v = new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.8 + Math.random(), (Math.random() - 0.5) * 1.2);
-      puff.userData.life = 0.8;
-      scene.add(puff);
-      puffs.push(puff);
+    if (Math.random() < 0.6 * FX) {
+      particle(puffs, PUFF_GEO, 0xeeeae2, 0.35 + Math.random() * 0.25, new THREE.Vector3(x, 0.4, z),
+        new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.8 + Math.random(), (Math.random() - 0.5) * 1.2), 0.8, 0.7);
     }
   }
   skids.instanceMatrix.needsUpdate = true;
@@ -518,7 +539,7 @@ function follow(dt) {
   let free = 1;
   for (let k = 1; k <= 12; k++) {
     const f = k / 12, px = drive.x - fx * back * f, pz = drive.z - fz * back * f;
-    if (colliders.some((c) => px > c.x0 - 0.8 && px < c.x1 + 0.8 && pz > c.z0 - 0.8 && pz < c.z1 + 0.8) || Math.abs(px) > EDGE || Math.abs(pz) > EDGE) break;
+    if (hits(px, pz, 0.8) || Math.abs(px) > EDGE || Math.abs(pz) > EDGE) break;
     free = f;
   }
   const dist = Math.max(3.5, back * free);
@@ -582,13 +603,9 @@ function closeCafe() { $('#cafe').hidden = true; current = null; canvas.focus();
 const puffs = [];
 function steam(stall) {
   const base = stall.position.clone().add(new THREE.Vector3(0, 3, 0));
-  for (let k = 0; k < 14; k++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
-    m.position.copy(base).add(new THREE.Vector3((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2));
-    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 1.5, 2 + Math.random() * 2, (Math.random() - 0.5) * 1.5);
-    m.userData.life = 1;
-    scene.add(m);
-    puffs.push(m);
+  for (let k = 0; k < 14 * FX; k++) {
+    particle(puffs, PUFF_GEO, 0xffffff, 0.3 + Math.random() * 0.3, base.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, Math.random(), (Math.random() - 0.5) * 2)),
+      new THREE.Vector3((Math.random() - 0.5) * 1.5, 2 + Math.random() * 2, (Math.random() - 0.5) * 1.5), 1);
   }
 }
 
@@ -782,12 +799,8 @@ function dent(obj, otherX, otherZ) {
 /* explosions, debris, sparks, and a smoking bonnet on dented cars */
 const debris = [];
 function sparks(at) {
-  for (let k = 0; k < 16; k++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), new THREE.MeshBasicMaterial({ color: k % 2 ? 0xffd23d : 0xff7a3d }));
-    m.position.copy(at);
-    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 12, Math.random() * 7, (Math.random() - 0.5) * 12);
-    m.userData.life = 0.5;
-    scene.add(m); debris.push(m);
+  for (let k = 0; k < 16 * FX; k++) {
+    particle(debris, CHIP_GEO, k % 2 ? 0xffd23d : 0xff7a3d, 0.12, at, new THREE.Vector3((Math.random() - 0.5) * 12, Math.random() * 7, (Math.random() - 0.5) * 12), 0.5, 1);
   }
 }
 function explode(who) {
@@ -796,16 +809,14 @@ function explode(who) {
   const color = who === 'player' ? trip.car.body : RIVAL_LOOK.body;
   const at = new THREE.Vector3(st.x, 1, st.z);
   // fireball
-  for (let k = 0; k < 22; k++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.5 + Math.random() * 0.7, 10, 8), new THREE.MeshBasicMaterial({ color: [0xffd23d, 0xff7a3d, 0xd8321f][k % 3], transparent: true, opacity: 0.95 }));
-    m.position.copy(at).add(new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random(), (Math.random() - 0.5) * 1.5));
-    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 6, 2 + Math.random() * 5, (Math.random() - 0.5) * 6);
-    m.userData.life = 0.9;
-    scene.add(m); puffs.push(m);
+  for (let k = 0; k < 22 * FX; k++) {
+    particle(puffs, PUFF_GEO, [0xffd23d, 0xff7a3d, 0xd8321f][k % 3], 0.5 + Math.random() * 0.7, at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random(), (Math.random() - 0.5) * 1.5)),
+      new THREE.Vector3((Math.random() - 0.5) * 6, 2 + Math.random() * 5, (Math.random() - 0.5) * 6), 0.9, 0.95);
   }
   // body panels flying off
-  for (let k = 0; k < 12; k++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.3 + Math.random() * 0.6, 0.12, 0.3 + Math.random() * 0.6), toon(k % 3 ? color : 0x222222));
+  for (let k = 0; k < 12 * FX; k++) {
+    const m = new THREE.Mesh(CHIP_GEO, toon(k % 3 ? color : 0x222222));
+    m.scale.set(0.3 + Math.random() * 0.6, 0.12, 0.3 + Math.random() * 0.6);
     m.position.copy(at);
     m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 16, 5 + Math.random() * 9, (Math.random() - 0.5) * 16);
     m.userData.spin = new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10);
@@ -845,7 +856,7 @@ function damageFx(dt) {
     if (m.position.y < 0.1) { m.position.y = 0.1; m.userData.v.multiplyScalar(0.5); m.userData.v.y *= -0.3; }
     if (m.userData.spin) { m.rotation.x += m.userData.spin.x * dt; m.rotation.z += m.userData.spin.z * dt; }
     m.userData.life -= dt;
-    if (m.userData.life <= 0) { scene.remove(m); debris.splice(k, 1); }
+    if (m.userData.life <= 0) { scene.remove(m); m.material.dispose(); debris.splice(k, 1); }
   }
   // invulnerable cars blink; dented cars smoke from the bonnet
   const blink = Math.floor(performance.now() / 120) % 2 === 0;
@@ -856,11 +867,8 @@ function damageFx(dt) {
     damageFx.t = 0.12;
     for (const [obj, st] of [[car, drive], [rivalCar, rival]]) {
       if (!obj.userData.dented || st.dead || !obj.visible) continue;
-      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.25 + Math.random() * 0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x6b6660, transparent: true, opacity: 0.6 }));
-      puff.position.set(st.x + Math.sin(st.heading) * 1.4, 1.3, st.z + Math.cos(st.heading) * 1.4);
-      puff.userData.v = new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.5, (Math.random() - 0.5) * 0.6);
-      puff.userData.life = 0.9;
-      scene.add(puff); puffs.push(puff);
+      particle(puffs, PUFF_GEO, 0x6b6660, 0.25 + Math.random() * 0.2, new THREE.Vector3(st.x + Math.sin(st.heading) * 1.4, 1.3, st.z + Math.cos(st.heading) * 1.4),
+        new THREE.Vector3((Math.random() - 0.5) * 0.6, 1.5, (Math.random() - 0.5) * 0.6), 0.9, 0.6);
     }
   }
 }
@@ -916,8 +924,7 @@ function checkGates() {
   }
   if (race.mode === 'duel') {
     const first = progress(race.idx, drive) >= progress(rival.gate, rival);
-    $('#racePos').textContent = first ? '1st' : '2nd';
-    $('#racePos').classList.toggle('first', first);
+    race.first = first;
   }
 }
 function finishRace(playerFirst) {
@@ -976,6 +983,27 @@ const openGarage = () => { if (race.running || race.countingDown) return; closeC
 const closeGarage = () => { $('#garage').hidden = true; canvas.focus(); };
 
 /* ---------- HUD, hints, toasts, minimap ---------- */
+let hudT = 0;
+function hudText(dt) { // text changes at 10 Hz — no need to touch the DOM every frame
+  if ((hudT -= dt) > 0 || !race.running) return;
+  hudT = 0.1;
+  $('#raceTime').textContent = fmt(race.t);
+  if (race.mode === 'duel') {
+    $('#racePos').textContent = race.first ? '1st' : '2nd';
+    $('#racePos').classList.toggle('first', !!race.first);
+  }
+}
+/** Nudge the render resolution to hold ~50–60 fps on whatever device this is. */
+const perf = { acc: 0, n: 0 };
+function adaptResolution(dt) {
+  perf.acc += dt; perf.n++;
+  if (perf.acc < 1.5) return;
+  const avg = perf.acc / perf.n;
+  perf.acc = perf.n = 0;
+  const next = avg > 1 / 45 ? dpr - 0.15 : avg < 1 / 58 ? dpr + 0.1 : dpr;
+  const clamped = Math.max(0.7, Math.min(DPR_MAX, next));
+  if (Math.abs(clamped - dpr) > 0.01) { dpr = clamped; renderer.setPixelRatio(dpr); resize(); }
+}
 function renderHud(what) {
   $('#tastedCount').textContent = `${trip.tasted.filter((id) => unlocked.includes(id)).length}/${unlocked.length}`;
   $('#coinCount').textContent = coins();
@@ -1017,10 +1045,19 @@ function mmCar(st, look) {
   if (dot) { mm.beginPath(); mm.arc(0, -1.6, 1.8, 0, Math.PI * 2); mm.fillStyle = dot; mm.fill(); mm.stroke(); }
   mm.restore();
 }
-function minimap() {
-  mm.fillStyle = '#9cc37a'; mm.fillRect(0, 0, S, S);
-  mm.fillStyle = '#55505e'; mm.fillRect(MX(-EDGE), MZ(-EDGE), EDGE * 2 * K, EDGE * 2 * K);
-  for (const c of colliders) { mm.fillStyle = c.park ? '#5a9a5a' : '#e8dcc3'; mm.fillRect(MX(c.x0), MZ(c.z0), B * K, B * K); }
+const mmBase = document.createElement('canvas');
+mmBase.width = mmBase.height = S;
+{
+  const b = mmBase.getContext('2d');
+  b.fillStyle = '#9cc37a'; b.fillRect(0, 0, S, S);
+  b.fillStyle = '#55505e'; b.fillRect(MX(-EDGE), MZ(-EDGE), EDGE * 2 * K, EDGE * 2 * K);
+  for (const c of colliders) { b.fillStyle = c.park ? '#5a9a5a' : '#e8dcc3'; b.fillRect(MX(c.x0), MZ(c.z0), B * K, B * K); }
+}
+let mmT = 0;
+function minimap(dt) {
+  if ((mmT -= dt) > 0) return;
+  mmT = 1 / 30;
+  mm.drawImage(mmBase, 0, 0);
   if (race.running || race.countingDown) {
     mm.beginPath(); PATH.forEach(([x, z], k) => (k ? mm.lineTo(MX(x), MZ(z)) : mm.moveTo(MX(x), MZ(z))));
     mm.strokeStyle = 'rgba(216,50,31,.55)'; mm.lineWidth = 2; mm.stroke();
@@ -1114,7 +1151,7 @@ function sim(dt) {
   checkCafes();
   checkGates();
   if (race.running || race.countingDown) aimGates(dt);
-  if (race.running) { race.t += dt * 1000; $('#raceTime').textContent = fmt(race.t); }
+  if (race.running) race.t += dt * 1000;
   if (arrow.visible) {
     const g = gates[race.idx];
     if (g) {
@@ -1132,10 +1169,12 @@ function sim(dt) {
     p.position.addScaledVector(p.userData.v, dt);
     p.userData.life -= dt * 0.8;
     p.material.opacity = Math.max(0, p.userData.life);
-    p.scale.setScalar(1 + (1 - p.userData.life));
-    if (p.userData.life <= 0) { scene.remove(p); puffs.splice(k, 1); }
+    p.scale.setScalar((p.userData.size || 1) * (1 + (1 - p.userData.life)));
+    if (p.userData.life <= 0) { scene.remove(p); p.material.dispose(); puffs.splice(k, 1); }
   }
-  minimap();
+  minimap(dt);
+  hudText(dt);
+  adaptResolution(dt);
 }
 tick();
 if (PREVIEW) window.__trip.sim = (frames = 1, dt = 1 / 60) => { for (let i = 0; i < frames; i++) sim(dt); renderer.render(scene, camera); };

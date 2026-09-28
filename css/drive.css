@@ -17,7 +17,10 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; overflow: hidden; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; }
+/* it's a game: no pinch/double-tap zoom on the play area, but dialogs can still scroll */
+.card { touch-action: pan-y; }
+button { touch-action: manipulation; }
 body {
   font: 400 16px/1.5 var(--f-body); color: var(--ink);
   /* warm evening sky behind the transparent canvas */
@@ -50,14 +53,14 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 .coin-ico { width: 16px; height: 16px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--ink); box-shadow: inset -2px -2px 0 #c98a00; }
 
 /* ---------- HUD ---------- */
-.hud-top { position: fixed; top: 14px; left: 14px; z-index: 10; display: flex; align-items: center; gap: 14px; }
+.hud-top { position: fixed; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); z-index: 10; display: flex; align-items: center; gap: 14px; }
 .back { font: 800 14px var(--f-body); text-transform: uppercase; text-decoration: none; background: var(--card); border: var(--bw) solid var(--ink); padding: 8px 12px; box-shadow: 3px 3px 0 var(--ink); }
 .trip-title { margin: 0; font: 400 40px/1 var(--f-display); text-transform: uppercase; text-shadow: 3px 3px 0 var(--card); }
 .trip-title span { color: var(--red); }
 .preview-tag { font: 700 12px var(--f-mono); text-transform: uppercase; letter-spacing: 1px; background: var(--yellow); border: 2px solid var(--ink); padding: 3px 8px; transform: rotate(-4deg); }
-.minimap { position: fixed; top: 14px; right: 14px; z-index: 10; background: var(--card); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); padding: 6px; line-height: 0; }
+.minimap { position: fixed; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 10; background: var(--card); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); padding: 6px; line-height: 0; }
 .minimap canvas { width: 170px; height: 170px; }
-.hud-bottom { position: fixed; left: 14px; bottom: 14px; z-index: 10; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hud-bottom { position: fixed; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 10; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .hint { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 10; margin: 0; padding: 6px 14px; background: var(--card); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); font: 400 22px var(--f-hand); color: var(--red); white-space: nowrap; transition: opacity .4s; }
 .hint.fade { opacity: 0; }
 
@@ -140,4 +143,24 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* phones held sideways: keep the road visible */
+@media (max-height: 500px) {
+  .trip-title, .preview-tag, .hint { display: none; }
+  .minimap { padding: 4px; }
+  .minimap canvas { width: 96px; height: 96px; }
+  .hud-bottom { gap: 6px; }
+  .hud-bottom .pill { font-size: 12px; padding: 3px 8px; }
+  .hud-bottom .pill span { display: none; }
+  .hud-bottom .btn { min-height: 34px; font-size: 12px; padding: 0 10px; box-shadow: 3px 3px 0 var(--ink); }
+  .touch { bottom: max(56px, env(safe-area-inset-bottom)); padding: 0 max(14px, env(safe-area-inset-left)); }
+  .touch button { width: 54px; height: 54px; }
+  .touch button.drift-btn { width: 64px; }
+  .race-time { font-size: 22px; }
+  .race-cp, .race-pos { font-size: 18px; }
+  .drift-meter { top: 80px; font-size: 22px; }
+  .card { max-height: 92vh; overflow: auto; padding: 18px; }
+  .card h2 { font-size: 34px; }
+  .keys { font-size: 13px; gap: 4px; }
 }

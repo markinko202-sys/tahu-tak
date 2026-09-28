@@ -594,6 +594,8 @@ $('#authorName').textContent = CONFIG.name;
 $('#githubLink').href = CONFIG.github;
 renderAll();
 
+// let the page paint first; building the 3D stage and dish photos can take a moment on phones
+await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 600 }) : setTimeout(r, 60)));
 try {
   const { initStage } = await import('./stage.js');
   stage = initStage($('#stage'), { dishIds: DISHES.map((d) => d.id), reducedMotion });

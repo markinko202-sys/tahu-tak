@@ -9,7 +9,12 @@ import { buildDish, buildTowers, buildTingkat, buildCoin, buildHibiscus } from '
  */
 export function initStage(canvas, { dishIds, reducedMotion }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // phones start lighter; resolution then follows the real frame rate
+  const MOBILE = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600;
+  const DPR_MAX = Math.min(window.devicePixelRatio, MOBILE ? 1.5 : 2);
+  let dpr = MOBILE ? Math.min(DPR_MAX, 1.25) : DPR_MAX;
+  renderer.setPixelRatio(dpr);
+  const perf = { acc: 0, n: 0 };
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const lights = (s) => {
@@ -178,7 +183,18 @@ export function initStage(canvas, { dishIds, reducedMotion }) {
           break;
       }
     }
-    if (any) renderer.render(scene, camera);
+    if (any) {
+      renderer.render(scene, camera);
+      const now = performance.now();
+      if (perf.last) { perf.acc += Math.min(0.1, (now - perf.last) / 1000); perf.n++; }
+      perf.last = now;
+      if (perf.acc > 1.5) {
+        const avg = perf.acc / perf.n, next = avg > 1 / 45 ? dpr - 0.15 : avg < 1 / 58 ? dpr + 0.1 : dpr;
+        perf.acc = perf.n = 0;
+        const c = Math.max(0.75, Math.min(DPR_MAX, next));
+        if (Math.abs(c - dpr) > 0.01) { dpr = c; renderer.setPixelRatio(dpr); resize(); }
+      }
+    }
     else renderer.clear();
   }
   tick();
