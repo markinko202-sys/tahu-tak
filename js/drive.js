@@ -66,13 +66,14 @@ const snaps = {};
 /* ---------- scene ---------- */
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xf3dcc0, 70, 150);
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 300);
 scene.add(new THREE.HemisphereLight(0xfff1dc, 0x7a6a55, 1.35));
 const sun = new THREE.DirectionalLight(0xffd2a0, 2.1); // low evening sun
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 160 });
-sun.shadow.bias = -0.0005;
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.06; // stops the striped self-shadowing on flat walls
 scene.add(sun, sun.target);
 
 /* ---------- city grid ----------
@@ -121,8 +122,9 @@ function instanced(geo, mat, items, { ink = 0.14, shadow = true } = {}) {
 /* facade textures drawn once on canvas: shophouse (five-foot-way arches + shuttered windows) and condo grid */
 function facade(kind) {
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 256;
   const g = c.getContext('2d');
+  g.scale(2, 2); // drawn in 128 units, stored at 256 for crisper mips
   g.fillStyle = '#fff';
   g.fillRect(0, 0, 128, 128);
   if (kind === 'shop') {
@@ -140,6 +142,7 @@ function facade(kind) {
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
 }
 
@@ -180,15 +183,18 @@ for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
     const { n, ry } = SIDES[s];
     const t = [-n[1], n[0]]; // along the facade
     const hasCafe = cafeAt.has(`${i},${j},${s}`);
-    for (let k = -1; k <= 1; k++) {
+    // x-facing sides own the corners and get three houses; z-facing sides only a middle one,
+    // so no two buildings ever overlap (overlaps flicker and let ink shells poke through walls)
+    const ks = s < 2 ? [-1, 0, 1] : [0];
+    for (const k of ks) {
       if (k === 0 && hasCafe) continue; // gap for the café
-      const w = hasCafe ? 2.9 : 3.5, d = 3.8, h = 5 + rand() * 2.4;
+      const w = hasCafe ? 2.9 : 3.4, d = 3.4, h = 5 + rand() * 2.4;
       const out = B / 2 - 1.3 - d / 2;
       const along = k * (hasCafe ? 4.6 : 3.6); // neighbours step aside to open a little plaza
       const x = cx + n[0] * out + t[0] * along, z = cz + n[1] * out + t[1] * along;
       const color = PASTEL[Math.floor(rand() * PASTEL.length)];
       houses.push({ x, y: 0.3 + h / 2, z, sx: w, sy: h, sz: d, ry, color });
-      roofs.push({ x, y: 0.3 + h + 0.25, z, sx: w + 0.3, sy: 0.5, sz: d + 0.3, ry, color: rand() < 0.5 ? 0xb5562f : 0x7c5a44 });
+      roofs.push({ x, y: 0.3 + h + 0.25, z, sx: w + 0.1, sy: 0.5, sz: d + 0.2, ry, color: rand() < 0.5 ? 0xb5562f : 0x7c5a44 });
     }
     // a street lamp in the middle of each side, at the kerb
     const lx = cx + n[0] * (B / 2 - 0.5) + t[0] * 1.8, lz = cz + n[1] * (B / 2 - 0.5) + t[1] * 1.8;
@@ -629,7 +635,9 @@ $('#raceAgain').addEventListener('click', startRace);
 $('#freeRoam').addEventListener('click', () => { $('#result').hidden = true; canvas.focus(); });
 $('#startDrive').addEventListener('click', () => { $('#intro').hidden = true; canvas.focus(); hint('Drive into a glowing ring to stop at a café.'); });
 canvas.tabIndex = 0;
-if (PREVIEW) window.__trip = { drive, camera }; // handy for poking at the preview from devtools
+if (PREVIEW) { // handy for poking at the preview from devtools
+  window.__trip = { drive, camera, frame: () => { step(0.016); follow(1); renderer.render(scene, camera); } };
+}
 
 /* ---------- intro gate ---------- */
 if (PREVIEW) {
