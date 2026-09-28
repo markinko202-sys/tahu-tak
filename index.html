@@ -3,142 +3,173 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Makan Quest — Malaysian Hawker Food in 3D</title>
-  <meta name="description" content="A gamified 3D tour of Malaysian hawker food. Collect dishes, pour the perfect teh tarik, level up to Food Sultan." />
-  <meta name="theme-color" content="#0c0a1d" />
+  <title>Tahu Tak? — the Malaysia quiz you can eat</title>
+  <meta name="description" content="A Malaysia trivia game. Win question sets to earn hawker dishes, sell them for coins, spend coins on hints. Four modes, five kinds of hints, best times." />
+  <meta name="theme-color" content="#f3ead7" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Condensed+One&family=Caveat+Brush&family=Public+Sans:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js" } }
   </script>
 </head>
 <body>
-  <a class="skip" href="#menu">Skip to the menu</a>
+  <a class="skip" href="#play">Skip to the game</a>
+  <canvas id="stage" aria-hidden="true"></canvas>
 
-  <!-- ===== HUD ===== -->
-  <header class="hud" id="hud">
-    <a class="logo" href="#top" aria-label="Makan Quest home">MAKAN<span>/</span>QUEST</a>
-    <nav class="hud-nav" aria-label="Sections">
-      <a href="#menu">Menu</a>
-      <a href="#pour">Pour</a>
-      <a href="#quiz">Quiz</a>
-      <a href="#passport">Passport</a>
+  <!-- ===== top bar ===== -->
+  <header class="bar">
+    <a class="brand" href="#top">Tahu <span>Tak?</span></a>
+    <nav class="bar-nav" aria-label="Sections">
+      <a href="#play">Main</a>
+      <a href="#kitchen">Dapur</a>
+      <a href="#shop">Kedai</a>
+      <a href="#records">Rekod</a>
     </nav>
-    <div class="hud-stats">
-      <div class="lvl" id="lvlChip"><span class="lvl-num" id="lvlNum">1</span><span class="lvl-title" id="lvlTitle">Hungry Tourist</span></div>
-      <div class="xp" role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="xpBar">
-        <div class="xp-fill" id="xpFill"></div>
-        <span class="xp-text" id="xpText">0 XP</span>
-      </div>
-      <div class="stamps-count" title="Dishes collected">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-1.5 1-3M12 7c0-1.5 1-1.5 1-3M16 7c0-1.5 1-1.5 1-3"/></svg>
-        <span id="stampCount">0/6</span>
-      </div>
+    <div class="wallet">
+      <span class="pill" title="Coins"><i class="coin-ico" aria-hidden="true"></i><b id="coinCount">0</b><span class="sr">coins</span></span>
+      <span class="pill" title="Dishes in your kitchen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0Z"/><path d="M9 8c0-1.5 1-1.5 1-3M14 8c0-1.5 1-1.5 1-3"/></svg><b id="dishCount">0</b><span class="sr">dishes</span></span>
     </div>
   </header>
 
   <main id="top">
-    <!-- ===== HERO ===== -->
-    <section class="hero" id="hero" data-section>
-      <canvas id="scene" aria-hidden="true"></canvas>
+    <!-- ===== hero ===== -->
+    <section class="hero">
       <div class="hero-copy">
-        <p class="kicker"><span class="dot"></span> Pasar malam is open · 7pm – late</p>
-        <h1>Eat your way<br />through <em>Malaysia</em></h1>
-        <p class="lead">Six legendary hawker dishes are floating over the night market. Tap them to collect stamps, pour the perfect teh tarik and climb from <b>Hungry Tourist</b> to <b>Food Sultan</b>.</p>
-        <div class="cta-row">
-          <a class="btn btn-primary" href="#menu">Start the quest</a>
-          <span class="hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11V5a2 2 0 1 1 4 0v5"/><path d="M13 10a2 2 0 1 1 4 0v2a2 2 0 1 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3l-3-5a2 2 0 0 1 3-2l2 2"/></svg>Tap a floating dish</span>
+        <p class="stamp-label">Est. 2026 · Kopitiam trivia</p>
+        <h1>How <span class="hl">Malaysian</span> are you, <em>lah?</em></h1>
+        <p class="lead">Answer a set of questions about Malaysia. Pass the set and the uncle hands you a real dish. You can keep it, or sell it at the market and spend the coins on hints.</p>
+        <div class="hero-cta">
+          <a class="btn btn-red" href="#play">Mula main →</a>
+          <a class="btn btn-paper" href="#how">How it works</a>
         </div>
-        <ul class="hero-meta">
-          <li><b>6</b> dishes</li><li><b>7</b> badges</li><li><b>6</b> levels</li>
-        </ul>
+        <p class="scribble scribble-hero">you win food,<br />not points!
+          <svg viewBox="0 0 120 60" aria-hidden="true"><path d="M5 10 C 40 5, 80 20, 105 48 M 92 44 L 106 50 L 104 35"/></svg>
+        </p>
       </div>
-      <div class="tooltip" id="tooltip" hidden></div>
-      <div class="webgl-fallback" id="webglFallback" hidden>3D view unavailable on this device — the quest still works below.</div>
+      <div class="prop prop-hero" data-prop="towers"></div>
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>50 questions</span><span>★</span><span>10 dishes to collect</span><span>★</span><span>4 modes</span><span>★</span><span>5 kinds of hints</span><span>★</span><span>kurang manis please</span><span>★</span>
+          <span>50 questions</span><span>★</span><span>10 dishes to collect</span><span>★</span><span>4 modes</span><span>★</span><span>5 kinds of hints</span><span>★</span><span>kurang manis please</span><span>★</span>
+        </div>
+      </div>
     </section>
 
-    <!-- ===== MENU ===== -->
-    <section class="section" id="menu" data-section>
-      <div class="section-head">
-        <p class="eyebrow">01 — The menu</p>
-        <h2>Collect all six stamps</h2>
-        <p class="section-sub">Each dish you collect earns <b>+50 XP</b>. Filter by where to find the best version.</p>
+    <!-- ===== how ===== -->
+    <section class="sec" id="how">
+      <div class="sec-grid">
+        <div class="prop prop-side" data-prop="tingkat"></div>
+        <div>
+          <p class="eyebrow">Macam mana · How it works</p>
+          <h2>Three steps.<br />One tingkat.</h2>
+          <ol class="steps">
+            <li><b>Pass a set.</b> Get 4 out of 5 right and a dish lands in your kitchen. Go 5 for 5 and the odds of a rare one jump.</li>
+            <li><b>Keep it or sell it.</b> Market prices change every day. Collect all ten dishes, or cash in when the price is high.</li>
+            <li><b>Buy hints.</b> Spend coins on 50:50, Ask Auntie, a clue, freezing the clock or a skip.</li>
+          </ol>
+          <p class="scribble">psst — the durian is worth 65 coins</p>
+        </div>
       </div>
-      <div class="filters" role="group" aria-label="Filter by region">
-        <button class="chip" aria-pressed="true" data-filter="all">All</button>
-        <button class="chip" aria-pressed="false" data-filter="kl">KL &amp; Selangor</button>
-        <button class="chip" aria-pressed="false" data-filter="penang">Penang</button>
-        <button class="chip" aria-pressed="false" data-filter="melaka">Melaka</button>
-      </div>
-      <div class="grid" id="menuGrid"></div>
     </section>
 
-    <!-- ===== TEH TARIK GAME ===== -->
-    <section class="section section-alt" id="pour" data-section>
-      <div class="section-head">
-        <p class="eyebrow">02 — Mini game</p>
-        <h2>Pull the perfect teh tarik</h2>
-        <p class="section-sub">Hold to pour from arm's length. Release when the foam lands inside the gold band. Perfect pours earn <b>+40 XP</b>.</p>
-      </div>
-      <div class="tarik">
-        <div class="tarik-stage" aria-hidden="true">
-          <div class="pitcher" id="pitcher"></div>
-          <div class="stream" id="stream"></div>
-          <div class="cup" id="cup">
-            <div class="target" id="target"></div>
-            <div class="fill" id="fill"><div class="foam"></div></div>
+    <!-- ===== play ===== -->
+    <section class="sec sec-green" id="play">
+      <div class="sec-grid sec-grid-rev">
+        <div>
+          <p class="eyebrow">Main · Play</p>
+          <h2>Pick a mode</h2>
+          <div class="modes" role="radiogroup" aria-label="Game mode" id="modeList"></div>
+          <h3 class="sub-h">Topic</h3>
+          <div class="cats" role="radiogroup" aria-label="Topic" id="catList"></div>
+          <div class="start-row">
+            <button class="btn btn-red btn-big" id="startBtn">Start</button>
+            <p class="start-note" id="startNote"></p>
           </div>
-          <div class="splash" id="splash"></div>
         </div>
-        <div class="tarik-panel">
-          <p class="tarik-status" id="tarikStatus" aria-live="polite">Hold the button (or Space) to pour.</p>
-          <button class="btn btn-primary btn-pour" id="pourBtn">Hold to pour</button>
-          <dl class="tarik-stats">
-            <div><dt>Pours</dt><dd id="statPours">0</dd></div>
-            <div><dt>Perfect</dt><dd id="statPerfect">0</dd></div>
-            <div><dt>Streak</dt><dd id="statStreak">0</dd></div>
-          </dl>
+        <div class="prop prop-side" data-prop="coin"></div>
+      </div>
+    </section>
+
+    <!-- ===== kitchen ===== -->
+    <section class="sec" id="kitchen">
+      <div class="kitchen-head">
+        <div>
+          <p class="eyebrow">Dapur · Your kitchen</p>
+          <h2>Hoard it or sell it</h2>
+          <p class="sec-sub">Prices on the market board change every day. <span id="collectionNote"></span></p>
+        </div>
+        <div class="prop prop-wide" data-prop="susan"></div>
+      </div>
+      <div class="kitchen-grid" id="kitchenGrid"></div>
+      <div class="kitchen-foot">
+        <p>Kitchen value today: <b id="kitchenValue">0</b> coins</p>
+        <button class="btn btn-paper" id="sellAll">Sell everything</button>
+      </div>
+    </section>
+
+    <!-- ===== shop ===== -->
+    <section class="sec sec-yellow" id="shop">
+      <div class="sec-grid">
+        <div class="prop prop-side" data-prop="hibiscus"></div>
+        <div>
+          <p class="eyebrow">Kedai · Hint shop</p>
+          <h2>Stock up on hints</h2>
+          <p class="sec-sub">Hints you buy here are kept for later. If you run out during a game, you can buy one on the spot at the same price.</p>
+          <div class="shop" id="shopList"></div>
         </div>
       </div>
     </section>
 
-    <!-- ===== QUIZ ===== -->
-    <section class="section" id="quiz" data-section>
-      <div class="section-head">
-        <p class="eyebrow">03 — Pop quiz</p>
-        <h2>Are you a local yet?</h2>
-        <p class="section-sub">Four questions, <b>+25 XP</b> each on your first run.</p>
+    <!-- ===== records ===== -->
+    <section class="sec" id="records">
+      <p class="eyebrow">Rekod · Records</p>
+      <h2>Your best times</h2>
+      <div class="records">
+        <div class="best" id="bestList"></div>
+        <div class="runs-wrap">
+          <h3 class="sub-h">Last runs</h3>
+          <table class="runs">
+            <thead><tr><th>Mode</th><th>Topic</th><th>Score</th><th>Time</th><th>Won</th></tr></thead>
+            <tbody id="runList"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="quiz" id="quizBox" aria-live="polite"></div>
-    </section>
-
-    <!-- ===== PASSPORT ===== -->
-    <section class="section section-alt" id="passport" data-section>
-      <div class="section-head">
-        <p class="eyebrow">04 — Your progress</p>
-        <h2>Makan passport</h2>
-        <p class="section-sub">Stamps and badges are saved in this browser.</p>
-      </div>
-      <div class="passport">
-        <div class="stamp-grid" id="stampGrid"></div>
-        <ul class="badges" id="badgeList"></ul>
-      </div>
-      <button class="btn btn-ghost" id="resetBtn">Reset progress</button>
+      <button class="btn btn-paper btn-small" id="resetBtn">Wipe my progress</button>
     </section>
   </main>
 
-  <footer class="footer">
-    <p>Built as a front-end showcase with <b>Three.js</b>, vanilla <b>JavaScript</b> and hand-written <b>CSS</b>. No frameworks, no images — every dish is modelled in code.</p>
-    <p class="footer-sub">© <span id="year"></span> <span id="authorName"></span> · <a id="githubLink" href="#">GitHub</a>
-      <button class="chili" id="chili" aria-label="A hidden chili — click me"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4c-1 1-1 2 0 3-4 0-6 3-8 7s-4 6-7 6c6 2 13-1 15-7 1-3 1-5 0-6 1 0 2-1 2-2"/></svg></button>
-    </p>
+  <footer class="foot">
+    <p class="foot-big">Terima kasih, datang lagi!</p>
+    <p>Made by <span id="authorName"></span> with vanilla JS, Three.js and CSS. Every dish is modelled in code. · <a id="githubLink" href="#">GitHub</a></p>
   </footer>
 
-  <div class="toasts" id="toasts" aria-live="polite"></div>
-  <canvas id="confetti" aria-hidden="true"></canvas>
+  <!-- ===== game dialog ===== -->
+  <div class="game" id="game" role="dialog" aria-modal="true" aria-labelledby="gQuestion" hidden>
+    <div class="game-inner">
+      <div class="g-top">
+        <button class="g-quit" id="gQuit" aria-label="Quit game">✕</button>
+        <span class="g-mode" id="gMode"></span>
+        <div class="g-progress" id="gProgress" aria-hidden="true"></div>
+        <div class="g-timer" id="gTimer" role="timer" aria-live="off">00:00.0</div>
+        <span class="pill"><i class="coin-ico" aria-hidden="true"></i><b id="gCoins">0</b></span>
+      </div>
 
+      <div class="g-play" id="gPlay">
+        <p class="g-cat" id="gCat"></p>
+        <h2 class="g-q" id="gQuestion"></h2>
+        <div class="g-options" id="gOptions"></div>
+        <p class="g-clue" id="gClue" hidden></p>
+        <p class="g-feedback" id="gFeedback" aria-live="polite"></p>
+        <div class="g-hints" id="gHints" aria-label="Hints"></div>
+      </div>
+
+      <div class="g-result" id="gResult" hidden></div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

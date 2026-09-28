@@ -1,479 +1,585 @@
+import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js';
+
 /* ---------- personalise here ---------- */
-const CONFIG = {
-  name: 'Artemiy',
-  github: 'https://github.com/',
-};
-
-/* ---------- data ---------- */
-const DISHES = [
-  { id: 'nasi-lemak', name: 'Nasi Lemak', region: 'kl', place: 'Kampung Baru, KL', heat: 2, price: 'RM 6',
-    desc: "Coconut rice, sambal, crispy anchovies, peanuts and egg — the country's unofficial national breakfast.",
-    tip: 'Ask for "sambal lebih" if you can handle extra chili.' },
-  { id: 'roti-canai', name: 'Roti Canai', region: 'penang', place: 'Mamak stalls, Penang', heat: 1, price: 'RM 2.50',
-    desc: 'Flaky, hand-flipped flatbread torn apart and dunked in dhal. Tastes best at a 24-hour mamak at 2 a.m.',
-    tip: 'Order "roti banjir" — flooded in curry.' },
-  { id: 'teh-tarik', name: 'Teh Tarik', region: 'kl', place: 'Every mamak, nationwide', heat: 0, price: 'RM 2.20',
-    desc: '"Pulled tea" — poured back and forth from arm\'s length until it wears a thick, frothy crown.',
-    tip: 'Say "kurang manis" for less sugar.' },
-  { id: 'satay', name: 'Satay Kajang', region: 'kl', place: 'Kajang, Selangor', heat: 1, price: 'RM 1 / stick',
-    desc: 'Charcoal-grilled skewers glazed with turmeric and lemongrass, served with chunky peanut sauce.',
-    tip: 'Minimum order is usually ten sticks. Nobody stops at ten.' },
-  { id: 'cendol', name: 'Cendol', region: 'melaka', place: 'Jonker Street, Melaka', heat: 0, price: 'RM 4',
-    desc: 'Shaved ice, pandan jelly, coconut milk and smoky gula Melaka — engineered for 33°C afternoons.',
-    tip: 'Add red beans or durian for the full experience.' },
-  { id: 'durian', name: 'Musang King', region: 'penang', place: 'Balik Pulau, Penang', heat: 0, price: 'RM 45 / kg',
-    desc: 'The King of Fruits. Banned on trains, adored everywhere else. Creamy, bittersweet, unforgettable.',
-    tip: 'Eat it at the stall — hotels will not thank you.' },
-];
-
-const QUIZ = [
-  { q: 'Which drink is famously "pulled" between two cups?', options: ['Kopi O', 'Teh Tarik', 'Milo Dinosaur', 'Sirap Bandung'], a: 1,
-    explain: 'Pulling cools the tea and aerates it into that signature foam.' },
-  { q: 'What gives cendol its smoky, caramel sweetness?', options: ['Condensed milk', 'Honey', 'Gula Melaka', 'Maple syrup'], a: 2,
-    explain: 'Gula Melaka is palm sugar, boiled down over fire.' },
-  { q: 'When is a typical mamak stall open?', options: ['Breakfast only', 'Weekends', 'Lunch hours', 'Often 24 hours'], a: 3,
-    explain: 'Many mamaks never close — perfect for late-night football and roti.' },
-  { q: 'Which fruit is banned on most Malaysian public transport?', options: ['Durian', 'Mangosteen', 'Rambutan', 'Jackfruit'], a: 0,
-    explain: 'The smell is legendary. Look for the "No Durian" signs.' },
-];
-
-const LEVELS = [
-  { min: 0, title: 'Hungry Tourist' },
-  { min: 80, title: 'Mamak Regular' },
-  { min: 200, title: 'Hawker Hunter' },
-  { min: 380, title: 'Pasar Malam Pro' },
-  { min: 560, title: 'Makan Master' },
-  { min: 750, title: 'Food Sultan' },
-];
-
-const ICONS = {
-  bowl: '<path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-1.5 1-3M12 7c0-1.5 1-1.5 1-3M16 7c0-1.5 1-1.5 1-3"/>',
-  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
-  cup: '<path d="M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6Z"/><path d="M17 10h1a3 3 0 0 1 0 6h-2"/><path d="M8 2c0 2 2 2 2 4M12 2c0 2 2 2 2 4"/>',
-  brain: '<circle cx="12" cy="12" r="9"/><path d="M9 10a3 3 0 1 1 4 2.8c-.6.3-1 .8-1 1.5V15"/><path d="M12 18h.01"/>',
-  map: '<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
-  chili: '<path d="M17 4c-1 1-1 2 0 3-4 0-6 3-8 7s-4 6-7 6c6 2 13-1 15-7 1-3 1-5 0-6 1 0 2-1 2-2"/>',
-  crown: '<path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 12H5Z"/>',
-  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  check: '<path d="m5 12 5 5L20 7"/>',
-  pin: '<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
-};
-const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
-
-const BADGES = [
-  { id: 'first-bite', name: 'First Bite', desc: 'Collect your first dish', icon: 'bowl' },
-  { id: 'full-plate', name: 'Full Plate', desc: 'Collect all six dishes', icon: 'star' },
-  { id: 'tarik-master', name: 'Tarik Master', desc: 'Land a perfect pour', icon: 'cup' },
-  { id: 'quiz-whiz', name: 'Quiz Whiz', desc: 'Ace the quiz 4/4', icon: 'brain' },
-  { id: 'explorer', name: 'Explorer', desc: 'Visit every section', icon: 'map' },
-  { id: 'chili-hunter', name: 'Chili Hunter', desc: 'Find the hidden chili', icon: 'chili' },
-  { id: 'hawker-hunter', name: 'Hawker Hunter', desc: 'Reach level 3', icon: 'crown' },
-];
+const CONFIG = { name: 'Artemiy', github: 'https://github.com/' };
 
 /* ---------- state ---------- */
-const KEY = 'makan-quest-v1';
-const fresh = () => ({ xp: 0, collected: [], badges: [], tarikXP: 0, quizDone: false, visited: [], pours: 0, perfect: 0 });
+const KEY = 'tahu-tak-v1';
+const fresh = () => ({
+  coins: 30,
+  inv: {},
+  seen: [],
+  hints: { fifty: 1, auntie: 1, clue: 1, freeze: 0, skip: 0 },
+  best: {},
+  runs: [],
+  daily: null,
+});
 let state = fresh();
 try { state = { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* storage blocked */ }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } };
 
-const $ = (s, root = document) => root.querySelector(s);
-const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let snapshots = {};
+let stage = null;
 
-/* ---------- XP + levels ---------- */
-const levelIndex = (xp) => LEVELS.reduce((idx, l, i) => (xp >= l.min ? i : idx), 0);
-
-function renderHUD() {
-  const i = levelIndex(state.xp), cur = LEVELS[i], next = LEVELS[i + 1];
-  const pct = next ? ((state.xp - cur.min) / (next.min - cur.min)) * 100 : 100;
-  $('#lvlNum').textContent = i + 1;
-  $('#lvlTitle').textContent = cur.title;
-  $('#xpFill').style.width = pct + '%';
-  $('#xpText').textContent = next ? `${state.xp} / ${next.min} XP` : `${state.xp} XP · MAX`;
-  $('#xpBar').setAttribute('aria-valuenow', Math.round(pct));
-  $('#xpBar').setAttribute('aria-valuetext', `Level ${i + 1}, ${cur.title}, ${state.xp} XP`);
-  $('#stampCount').textContent = `${state.collected.length}/${DISHES.length}`;
+/* ---------- helpers ---------- */
+const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local
+function seeded(str) { // mulberry32 seeded from a string hash
+  let h = 2166136261;
+  for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
-
-function addXP(n) {
-  const before = levelIndex(state.xp);
-  state.xp += n;
-  const after = levelIndex(state.xp);
-  save();
-  renderHUD();
-
-  const bar = $('#xpBar').getBoundingClientRect();
-  const pop = document.createElement('span');
-  pop.className = 'xp-pop';
-  pop.textContent = `+${n} XP`;
-  pop.style.left = bar.left + bar.width / 2 - 24 + 'px';
-  pop.style.top = bar.bottom + 6 + 'px';
-  document.body.append(pop);
-  setTimeout(() => pop.remove(), 1200);
-
-  if (after > before) {
-    const chip = $('#lvlChip');
-    chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
-    toast({ icon: 'crown', title: `Level ${after + 1} — ${LEVELS[after].title}`, sub: 'You levelled up!' });
-    confetti();
-    if (after >= 2) unlock('hawker-hunter');
-  }
+function shuffle(a, rnd = Math.random) {
+  a = [...a];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
 }
+const fmt = (ms) => {
+  const s = Math.max(0, ms) / 1000, m = Math.floor(s / 60);
+  return `${String(m).padStart(2, '0')}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+};
+const dish = (id) => DISHES.find((d) => d.id === id);
+const mode = (id) => MODES.find((m) => m.id === id);
+const cat = (id) => CATEGORIES.find((c) => c.id === id);
+const img = (id, alt = '') => (snapshots[id] ? `<img src="${snapshots[id]}" alt="${alt}">` : '');
+const marketPrice = (d) => Math.max(1, Math.round(d.price * (0.7 + seeded(today() + d.id)() * 0.7)));
+const dishTotal = () => Object.values(state.inv).reduce((a, b) => a + b, 0);
 
-function unlock(id) {
-  if (state.badges.includes(id)) return;
-  state.badges.push(id);
-  const b = BADGES.find((x) => x.id === id);
-  toast({ icon: b.icon, title: `Badge unlocked: ${b.name}`, sub: `${b.desc} · +25 XP` });
-  renderPassport();
-  addXP(25);
-}
-
-/* ---------- toasts + confetti ---------- */
-function toast({ icon: ic, img, title, sub }) {
+function toast(html, imgId) {
   const el = document.createElement('div');
   el.className = 'toast';
-  el.innerHTML = `${img ? `<img src="${img}" alt="">` : `<span class="t-icon">${icon(ic)}</span>`}<div><b>${title}</b><small>${sub}</small></div>`;
+  el.innerHTML = `${imgId ? img(imgId) : ''}<span>${html}</span>`;
   $('#toasts').append(el);
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 3400);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, 3000);
 }
 
-const cvs = $('#confetti'), ctx = cvs.getContext('2d');
-let pieces = [];
-function confetti() {
-  if (reducedMotion) return;
-  cvs.width = innerWidth * devicePixelRatio;
-  cvs.height = innerHeight * devicePixelRatio;
-  const colors = ['#ffb627', '#ff4d3d', '#3ddc84', '#ff5fa2', '#fbf6ee'];
-  for (let i = 0; i < 160; i++) {
-    pieces.push({
-      x: innerWidth / 2, y: innerHeight * 0.35,
-      vx: (Math.random() - 0.5) * 16, vy: Math.random() * -14 - 4,
-      r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4,
-      w: 6 + Math.random() * 6, h: 10 + Math.random() * 8, c: colors[i % colors.length], life: 1,
-    });
+function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+/* ---------- wallet ---------- */
+function renderWallet(what) {
+  $('#coinCount').textContent = state.coins;
+  $('#gCoins').textContent = state.coins;
+  $('#dishCount').textContent = dishTotal();
+  if (what === 'coins') { bump($('#coinCount').parentElement); bump($('#gCoins').parentElement); }
+  if (what === 'dish') bump($('#dishCount').parentElement);
+}
+function addCoins(n) { state.coins += n; save(); renderWallet('coins'); renderShop(); }
+
+/* ---------- dishes ---------- */
+const ODDS = {
+  pass: { common: 70, rare: 25, epic: 5, legendary: 0 },
+  perfect: { common: 40, rare: 40, epic: 15, legendary: 5 },
+  streak: { common: 60, rare: 30, epic: 8, legendary: 2 },
+  daily: { common: 0, rare: 65, epic: 25, legendary: 10 },
+};
+function rollDish(tier) {
+  const w = ODDS[tier];
+  let r = Math.random() * Object.values(w).reduce((a, b) => a + b, 0);
+  let rarity = 'common';
+  for (const [k, v] of Object.entries(w)) { if ((r -= v) < 0) { rarity = k; break; } }
+  const pool = DISHES.filter((d) => d.rarity === rarity);
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+function giveDish(id) {
+  state.inv[id] = (state.inv[id] || 0) + 1;
+  if (!state.seen.includes(id)) state.seen.push(id);
+  save();
+  renderWallet('dish');
+  renderKitchen();
+}
+
+/* ---------- setup: modes + topics ---------- */
+const sel = { mode: 'classic', cat: 'mix' };
+
+function renderSetup() {
+  const dailyDone = state.daily === today();
+  $('#modeList').innerHTML = MODES.map((m) => `
+    <button class="mode" role="radio" aria-checked="${sel.mode === m.id}" data-mode="${m.id}"
+      ${m.id === 'daily' && dailyDone ? 'aria-disabled="true"' : ''}>
+      <b>${m.name}</b><small>${m.en}</small><span>${m.id === 'daily' && dailyDone ? 'Done for today. Come back tomorrow for a new set.' : m.rule}</span>
+    </button>`).join('');
+  $('#catList').innerHTML = CATEGORIES.map((c) => `
+    <button class="cat" role="radio" aria-checked="${sel.cat === c.id}" data-cat="${c.id}" ${sel.mode === 'daily' ? 'disabled' : ''}>
+      ${c.name}<small>${c.en}</small></button>`).join('');
+  const best = state.best[sel.mode];
+  const notes = {
+    classic: best ? `your best: ${fmt(best)} — beat it!` : 'pass the set in under 40s for bonus coins',
+    blitz: best ? `your record: ${best} correct` : 'quick quick, no time to think',
+    survival: best ? `longest run: ${best}` : 'one mistake and balik rumah',
+    daily: dailyDone ? 'already played today' : 'rare dish or better if you pass',
+  };
+  $('#startNote').textContent = notes[sel.mode];
+  $('#startBtn').disabled = sel.mode === 'daily' && dailyDone;
+}
+
+$('#modeList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (!b || b.getAttribute('aria-disabled') === 'true') return;
+  sel.mode = b.dataset.mode;
+  renderSetup();
+});
+$('#catList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cat]');
+  if (!b) return;
+  sel.cat = b.dataset.cat;
+  renderSetup();
+});
+
+/* =========================================================
+   game engine
+   ========================================================= */
+let run = null;
+const game = $('#game');
+const poolFor = (c) => QUESTIONS.map((_, i) => i).filter((i) => c === 'mix' || QUESTIONS[i].c === c);
+const isSet = (m) => m === 'classic' || m === 'daily';
+
+function startGame() {
+  const m = sel.mode;
+  if (m === 'daily' && state.daily === today()) return;
+  const c = m === 'daily' ? 'mix' : sel.cat;
+  const pool = m === 'daily' ? shuffle(poolFor('mix'), seeded('daily' + today())) : shuffle(poolFor(c));
+  run = {
+    mode: m, cat: c, pool,
+    total: isSet(m) ? 5 : Infinity,
+    n: 0, correct: 0, streak: 0, results: [], won: [], coinsWon: 0,
+    elapsed: 0, last: performance.now(), frozenUntil: 0, paused: true,
+    q: null, used: {}, locked: false, pending: null, over: false,
+  };
+  if (m === 'daily') { state.daily = today(); save(); renderSetup(); }
+
+  game.hidden = false;
+  document.body.style.overflow = 'hidden';
+  stage?.pause(true);
+  $('#gResult').hidden = true;
+  $('#gPlay').hidden = false;
+  $('#gMode').textContent = mode(m).name;
+  $('#gTimer').className = 'g-timer';
+  $('#gTimer').textContent = fmt(m === 'blitz' ? 60000 : 0);
+  nextQuestion();
+  requestAnimationFrame(loop);
+}
+
+function draw() {
+  if (!run.pool.length) run.pool = shuffle(poolFor(run.cat).filter((i) => i !== run.q)); // endless modes refill
+  return run.pool.shift();
+}
+
+function nextQuestion() {
+  clearTimeout(run.pending);
+  if (run.n >= run.total) return endGame();
+  run.q = draw();
+  run.used = {};
+  run.locked = false;
+  renderQuestion();
+  run.paused = false;
+  run.last = performance.now();
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[run.q];
+  $('#gCat').textContent = `${cat(q.c).name} · ${cat(q.c).en}`;
+  const h = $('#gQuestion');
+  h.textContent = q.q;
+  $('#gOptions').innerHTML = q.o.map((o, k) =>
+    `<button class="opt" data-k="${k}"><kbd>${k + 1}</kbd><span>${o}</span></button>`).join('');
+  $('#gClue').hidden = true;
+  $('#gFeedback').innerHTML = '';
+  renderHints();
+  renderProgress();
+  h.setAttribute('tabindex', '-1');
+  h.focus({ preventScroll: true });
+}
+
+function renderProgress() {
+  const el = $('#gProgress');
+  if (isSet(run.mode)) {
+    el.innerHTML = Array.from({ length: 5 }, (_, i) =>
+      `<i class="${i < run.results.length ? (run.results[i] ? 'ok' : 'no') : i === run.n ? 'now' : ''}"></i>`).join('');
+  } else {
+    const inFive = run.correct % 5;
+    el.innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${i < inFive ? 'ok' : i === inFive ? 'now' : ''}"></i>`).join('') +
+      `<i class="count">${run.correct} ✓</i>`;
   }
-  if (pieces.length === 160) requestAnimationFrame(drawConfetti);
 }
-function drawConfetti() {
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.clearRect(0, 0, innerWidth, innerHeight);
-  pieces = pieces.filter((p) => p.life > 0 && p.y < innerHeight + 40);
-  for (const p of pieces) {
-    p.vy += 0.4; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life -= 0.006;
-    ctx.save();
-    ctx.translate(p.x, p.y); ctx.rotate(p.r);
-    ctx.globalAlpha = Math.min(1, p.life * 2);
-    ctx.fillStyle = p.c;
-    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.cos(p.r * 2));
-    ctx.restore();
+
+function loop(now) {
+  if (!run || run.over) return;
+  const dt = now - run.last;
+  run.last = now;
+  const frozen = now < run.frozenUntil;
+  if (!run.paused && !frozen) run.elapsed += dt;
+  const t = $('#gTimer');
+  if (run.mode === 'blitz') {
+    const left = 60000 - run.elapsed;
+    t.textContent = fmt(left);
+    t.classList.toggle('low', left < 10000 && !frozen);
+    if (left <= 0) { endGame(); return; }
+  } else {
+    t.textContent = fmt(run.elapsed);
   }
-  if (pieces.length) requestAnimationFrame(drawConfetti);
-  else ctx.clearRect(0, 0, innerWidth, innerHeight);
+  t.classList.toggle('frozen', frozen);
+  requestAnimationFrame(loop);
 }
 
-/* ---------- collecting ---------- */
-let scene3d = null;
-
-function collect(id) {
-  const dish = DISHES.find((d) => d.id === id);
-  if (state.collected.includes(id)) {
-    toast({ img: snapshots[id], icon: 'bowl', title: dish.name, sub: `Already stamped · ${dish.place}` });
-    return;
-  }
-  state.collected.push(id);
-  scene3d?.markCollected(id);
-  toast({ img: snapshots[id], icon: 'bowl', title: `${dish.name} collected!`, sub: `${dish.place} · +50 XP` });
-  updateCard(id);
-  renderPassport();
-  addXP(50);
-  if (state.collected.length === 1) unlock('first-bite');
-  if (state.collected.length === DISHES.length) { unlock('full-plate'); confetti(); }
-}
-
-/* ---------- menu cards ---------- */
-function renderMenu() {
-  $('#menuGrid').innerHTML = DISHES.map((d) => `
-    <article class="card reveal" data-id="${d.id}" data-region="${d.region}">
-      <div class="card-img">
-        <span class="placeholder">${d.name[0]}</span>
-        <span class="stamp-mark">STAMPED</span>
-      </div>
-      <div class="card-top"><h3>${d.name}</h3><span class="price">${d.price}</span></div>
-      <div class="meta">
-        <span>${icon('pin')} ${d.place}</span>
-        <span class="heat" aria-label="Heat ${d.heat} of 3">${[0, 1, 2].map((i) => icon('chili').replace('<svg', `<svg class="${i < d.heat ? 'on' : ''}"`)).join('')}</span>
-      </div>
-      <p>${d.desc}</p>
-      <p class="tip">${d.tip}</p>
-      <button class="btn btn-primary" data-collect="${d.id}"></button>
-    </article>`).join('');
-  DISHES.forEach((d) => updateCard(d.id));
-
-  $('#menuGrid').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-collect]');
-    if (b) collect(b.dataset.collect);
+function answer(k) {
+  if (!run || run.locked || run.over) return;
+  const btn = $(`.opt[data-k="${k}"]`);
+  if (!btn || btn.disabled) return;
+  run.locked = true;
+  run.paused = true;
+  const q = QUESTIONS[run.q], ok = k === q.a;
+  $$('.opt').forEach((b) => {
+    b.disabled = true;
+    if (+b.dataset.k === q.a) b.classList.add('right');
+    else if (+b.dataset.k === k) b.classList.add('wrong');
   });
+  const yes = ['Betul!', 'Pandai!', 'Syok!', 'Steady!'], no = ['Alamak!', 'Aiyo…', 'Salah!', 'Adoi!'];
+  const word = (ok ? yes : no)[Math.floor(Math.random() * 4)];
+  $('#gFeedback').innerHTML = `<b class="${ok ? 'yes' : 'nope'}">${word}</b>${q.fact}`;
 
-  // 3D tilt + spotlight
-  if (!reducedMotion && matchMedia('(hover: hover)').matches) {
-    $$('.card').forEach((card) => {
-      card.addEventListener('pointermove', (e) => {
-        const r = card.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-        card.style.setProperty('--ry', `${(x - 0.5) * 14}deg`);
-        card.style.setProperty('--rx', `${(0.5 - y) * 12}deg`);
-        card.style.setProperty('--mx', `${x * 100}%`);
-        card.style.setProperty('--my', `${y * 100}%`);
-      });
-      card.addEventListener('pointerleave', () => { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); });
-    });
-  }
-
-  $$('.chip').forEach((chip) => chip.addEventListener('click', () => {
-    $$('.chip').forEach((c) => c.setAttribute('aria-pressed', c === chip));
-    const f = chip.dataset.filter;
-    $$('.card').forEach((c) => c.classList.toggle('hidden', f !== 'all' && c.dataset.region !== f));
-  }));
-}
-
-function updateCard(id) {
-  const card = $(`.card[data-id="${id}"]`);
-  if (!card) return;
-  const got = state.collected.includes(id);
-  card.classList.toggle('collected', got);
-  $('[data-collect]', card).innerHTML = got ? `${icon('check')} Stamped` : 'Collect stamp · +50 XP';
-}
-
-function applySnapshots() {
-  for (const d of DISHES) {
-    const src = snapshots[d.id];
-    if (!src) continue;
-    const box = $(`.card[data-id="${d.id}"] .card-img`);
-    box.querySelector('.placeholder')?.remove();
-    const img = new Image();
-    img.src = src;
-    img.alt = `3D model of ${d.name}`;
-    box.prepend(img);
-  }
-  renderPassport();
-}
-
-/* ---------- teh tarik mini-game ---------- */
-function initTarik() {
-  const btn = $('#pourBtn'), fill = $('#fill'), target = $('#target'), status = $('#tarikStatus');
-  const pitcher = $('#pitcher'), stream = $('#stream'), splash = $('#splash');
-  let level = 0, holding = false, locked = false, last = 0, band = 0, streak = 0;
-  const BAND = 11;
-
-  const newRound = () => {
-    level = 0; locked = false;
-    band = 55 + Math.random() * 25;
-    target.style.bottom = band + '%';
-    target.style.height = BAND + '%';
-    fill.style.height = '0%';
-    fill.classList.add('empty');
-    status.textContent = 'Hold the button (or Space) to pour.';
-  };
-
-  const loop = (now) => {
-    if (!holding) return;
-    const dt = Math.min((now - last) / 1000, 0.1); last = now;
-    level += (24 + level * 0.55) * dt;
-    fill.style.height = Math.min(level, 100) + '%';
-    fill.classList.toggle('empty', level < 2);
-    if (level >= 100) return release();
-    requestAnimationFrame(loop);
-  };
-
-  const start = () => {
-    if (holding || locked) return;
-    holding = true;
-    btn.classList.add('holding'); pitcher.classList.add('pouring'); stream.classList.add('on');
-    status.textContent = 'Pouring…';
-    last = performance.now();
-    requestAnimationFrame(loop);
-  };
-
-  const release = () => {
-    if (!holding) return;
-    holding = false; locked = true;
-    btn.classList.remove('holding'); pitcher.classList.remove('pouring'); stream.classList.remove('on');
-    state.pours++;
-    let word, color, xp = 0;
-    const top = band + BAND;
-    if (level >= 100) { word = 'TUMPAH!'; color = 'var(--chili)'; status.textContent = 'Spilled everywhere. The uncle is not impressed.'; streak = 0; }
-    else if (level >= band && level <= top) {
-      word = 'PERFECT!'; color = 'var(--pandan)'; xp = 40; streak++; state.perfect++;
-      status.textContent = `Perfect foam! ${streak > 1 ? `${streak} in a row.` : ''}`;
-      unlock('tarik-master');
-    } else if (level >= band - 7 && level <= top + 7) {
-      word = 'SEDAP'; color = 'var(--amber)'; xp = 15; streak = 0;
-      status.textContent = level < band ? 'Close — a little more next time.' : 'Close — a touch too much foam.';
-    } else { word = 'KURANG'; color = 'var(--muted)'; streak = 0; status.textContent = 'Not enough tea. Keep pulling!'; }
-
-    splash.textContent = word;
-    splash.style.color = color;
-    splash.classList.remove('show'); void splash.offsetWidth; splash.classList.add('show');
-
-    // cap mini-game XP so the quest stays balanced
-    const give = Math.min(xp, 120 - state.tarikXP);
-    if (give > 0) { state.tarikXP += give; addXP(give); } else save();
-    renderTarikStats(streak);
-    setTimeout(newRound, 1400);
-  };
-
-  btn.addEventListener('pointerdown', (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); start(); });
-  btn.addEventListener('pointerup', release);
-  btn.addEventListener('pointercancel', release);
-  btn.addEventListener('contextmenu', (e) => e.preventDefault());
-  btn.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); start(); } });
-  btn.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'Enter') release(); });
-
-  newRound();
-  renderTarikStats(0);
-}
-function renderTarikStats(streak) {
-  $('#statPours').textContent = state.pours;
-  $('#statPerfect').textContent = state.perfect;
-  $('#statStreak').textContent = streak;
-}
-
-/* ---------- quiz ---------- */
-function initQuiz() {
-  const box = $('#quizBox');
-  let i = 0, results = [];
-
-  const render = () => {
-    const bar = `<div class="quiz-progress">${QUIZ.map((_, k) =>
-      `<span class="${k < results.length ? (results[k] ? 'done' : 'miss') : k === i ? 'now' : ''}"></span>`).join('')}</div>`;
-
-    if (i >= QUIZ.length) {
-      const score = results.filter(Boolean).length;
-      box.innerHTML = `${bar}<div class="quiz-result"><div class="big">${score}/${QUIZ.length}</div>
-        <h3>${score === QUIZ.length ? 'Certified local. Boleh!' : score >= 2 ? 'Not bad — almost a regular.' : 'Time for more makan research.'}</h3>
-        <button class="btn btn-ghost" id="quizRetry">Try again</button></div>`;
-      if (!state.quizDone) { state.quizDone = true; save(); }
-      if (score === QUIZ.length) unlock('quiz-whiz');
-      $('#quizRetry').onclick = () => { i = 0; results = []; render(); };
-      return;
+  run.n++;
+  run.results.push(ok);
+  if (ok) {
+    run.correct++;
+    run.streak++;
+    run.coinsWon += 2;
+    addCoins(2);
+    if (!isSet(run.mode) && run.correct % 5 === 0) {
+      const id = rollDish('streak');
+      giveDish(id);
+      run.won.push(id);
+      toast(`<b>${dish(id).name}</b> for 5 correct!`, id);
     }
-    const q = QUIZ[i];
-    box.innerHTML = `${bar}<h3>${q.q}</h3>
-      <div class="options">${q.options.map((o, k) => `<button class="option" data-k="${k}">${o}</button>`).join('')}</div>
-      <p class="explain" hidden></p><div class="quiz-foot"></div>`;
-    $$('.option', box).forEach((b) => b.addEventListener('click', () => answer(+b.dataset.k)));
-  };
+  } else {
+    run.streak = 0;
+  }
+  renderProgress();
+  renderHints();
 
-  const answer = (k) => {
-    const q = QUIZ[i], ok = k === q.a;
-    $$('.option', box).forEach((b, idx) => {
-      b.disabled = true;
-      if (idx === q.a) b.classList.add('right');
-      else if (idx === k) b.classList.add('wrong');
-    });
-    const ex = $('.explain', box);
-    ex.hidden = false;
-    ex.textContent = (ok ? 'Correct! ' : 'Not quite. ') + q.explain;
-    results.push(ok);
-    if (ok && !state.quizDone) addXP(25);
-    const next = document.createElement('button');
-    next.className = 'btn btn-primary';
-    next.textContent = i === QUIZ.length - 1 ? 'See result' : 'Next question';
-    next.onclick = () => { i++; render(); };
-    $('.quiz-foot', box).append(next);
-    next.focus({ preventScroll: true });
-  };
-
-  render();
+  const fast = run.mode === 'blitz';
+  const delay = ok ? (fast ? 700 : 1500) : (fast ? 1300 : 2600);
+  if (!ok && run.mode === 'survival') { run.pending = setTimeout(endGame, delay); return; }
+  run.pending = setTimeout(nextQuestion, delay);
 }
 
-/* ---------- passport ---------- */
-function renderPassport() {
-  $('#stampGrid').innerHTML = DISHES.map((d, k) => {
-    const got = state.collected.includes(d.id);
-    const img = snapshots[d.id] ? `<img src="${snapshots[d.id]}" alt="">` : '';
-    return `<div class="stamp ${got ? 'got' : ''}" style="--rot:${[-8, 5, -3, 7, -6, 4][k]}deg" aria-label="${d.name}: ${got ? 'collected' : 'not collected'}">${img}<span>${d.name}</span></div>`;
-  }).join('');
-  $('#badgeList').innerHTML = BADGES.map((b) => {
-    const on = state.badges.includes(b.id);
-    return `<li class="badge ${on ? 'on' : ''}"><span class="badge-icon">${icon(on ? b.icon : 'lock')}</span>
-      <div><b>${b.name}</b><small>${b.desc}</small></div></li>`;
+function proceed() { // Enter / click during feedback skips the wait
+  if (!run || !run.locked || run.over) return;
+  clearTimeout(run.pending);
+  const last = run.results[run.results.length - 1];
+  if (!last && run.mode === 'survival') endGame(); else nextQuestion();
+}
+
+/* ---------- hints ---------- */
+function renderHints() {
+  if (!run) return;
+  $('#gHints').innerHTML = HINTS.map((h) => {
+    const owned = state.hints[h.id] || 0;
+    const usable = !run.locked && !run.used[h.id] && (owned > 0 || state.coins >= h.price);
+    const tag = owned > 0 ? `<span class="tag">×${owned}</span>` : `<span class="tag buy">${h.price}c</span>`;
+    return `<button class="hint-btn" data-hint="${h.id}" ${usable ? '' : 'disabled'}
+      aria-label="${h.name}: ${owned > 0 ? `${owned} left` : `buy for ${h.price} coins`}">${h.name}${tag}</button>`;
   }).join('');
 }
 
-/* ---------- section visits + reveal ---------- */
-function initObservers() {
-  const reveal = new IntersectionObserver((entries) => entries.forEach((en) => {
-    if (en.isIntersecting) { en.target.classList.add('in'); reveal.unobserve(en.target); }
-  }), { threshold: 0.12 });
-  $$('.section-head, .card, .tarik, .quiz, .passport').forEach((el) => { el.classList.add('reveal'); reveal.observe(el); });
+function useHint(id) {
+  if (!run || run.locked || run.used[id]) return;
+  const h = HINTS.find((x) => x.id === id);
+  if (state.hints[id] > 0) state.hints[id]--;
+  else if (state.coins >= h.price) { state.coins -= h.price; renderWallet('coins'); }
+  else return;
+  run.used[id] = true;
+  save();
+  renderShop();
 
-  const sections = $$('[data-section]');
-  const visit = new IntersectionObserver((entries) => entries.forEach((en) => {
-    const id = en.target.id;
-    if (!en.isIntersecting || state.visited.includes(id)) return;
-    state.visited.push(id);
-    if (id !== 'hero') addXP(10); else save();
-    if (sections.every((s) => state.visited.includes(s.id))) unlock('explorer');
-  }), { threshold: 0.35 });
-  sections.forEach((s) => visit.observe(s));
+  const q = QUESTIONS[run.q];
+  const opts = $$('.opt');
+  const live = () => opts.filter((b) => !b.disabled).map((b) => +b.dataset.k);
+  switch (id) {
+    case 'fifty': {
+      shuffle(live().filter((k) => k !== q.a)).slice(0, 2).forEach((k) => {
+        const b = opts[k];
+        b.disabled = true;
+        b.classList.add('gone');
+      });
+      break;
+    }
+    case 'auntie': {
+      const alive = live();
+      const wrong = alive.filter((k) => k !== q.a);
+      const pick = Math.random() < 0.8 || !wrong.length ? q.a : wrong[Math.floor(Math.random() * wrong.length)];
+      const votes = {};
+      let left = 100 - (votes[pick] = 45 + Math.floor(Math.random() * 26));
+      const rest = alive.filter((k) => k !== pick);
+      rest.forEach((k, i) => { votes[k] = i === rest.length - 1 ? left : Math.floor(Math.random() * left * 0.7); left -= votes[k]; });
+      opts.forEach((b) => {
+        const k = +b.dataset.k;
+        if (!(k in votes)) return;
+        b.insertAdjacentHTML('beforeend', `<span class="poll-label">${votes[k]}%</span><span class="poll" style="width:0"></span>`);
+        requestAnimationFrame(() => { $('.poll', b).style.width = votes[k] + '%'; });
+      });
+      $('#gFeedback').innerHTML = `<b>Makcik says:</b> "${q.o[pick]}, confirm!"`;
+      break;
+    }
+    case 'clue':
+      $('#gClue').textContent = q.clue;
+      $('#gClue').hidden = false;
+      break;
+    case 'freeze':
+      run.frozenUntil = performance.now() + 10000;
+      $('#gTimer').classList.add('frozen');
+      toast('Clock frozen for 10 seconds');
+      break;
+    case 'skip':
+      run.q = draw();
+      renderQuestion();
+      run.used = { skip: true };
+      break;
+  }
+  renderHints();
 }
+
+/* ---------- end of run ---------- */
+function endGame() {
+  if (!run || run.over) return;
+  run.over = true;
+  clearTimeout(run.pending);
+  const m = run.mode;
+  let bonus = 0, tier = null, pb = false, verdict;
+
+  if (isSet(m)) {
+    if (run.correct >= 4) tier = m === 'daily' ? 'daily' : run.correct === 5 ? 'perfect' : 'pass';
+    if (tier) {
+      const id = rollDish(tier);
+      giveDish(id);
+      run.won.push(id);
+      bonus += run.correct === 5 ? 10 : 5;
+      if (run.elapsed < 40000) bonus += 8;
+      if (m === 'daily') bonus += run.correct * 2; // double answer coins
+      if (!state.best[m] || run.elapsed < state.best[m]) { state.best[m] = Math.round(run.elapsed); pb = true; }
+    }
+    verdict = run.correct === 5 ? 'Terror lah! A perfect set.' : run.correct === 4 ? 'Boleh! Here’s your makan.'
+      : run.correct === 3 ? 'Aiyo, so close. One more right and you’d have eaten.' : 'Time to go back to the mamak and study.';
+  } else {
+    if (!state.best[m] || run.correct > state.best[m]) { state.best[m] = run.correct; pb = run.correct > 0; }
+    verdict = m === 'blitz' ? `${run.correct} right in 60 seconds.` : run.correct >= 10 ? 'That’s a proper streak.' : 'One life only, lah.';
+  }
+  if (bonus) addCoins(bonus);
+  run.coinsWon += bonus;
+
+  state.runs.unshift({ mode: m, cat: run.cat, score: isSet(m) ? `${run.correct}/5` : `${run.correct}`, time: Math.round(run.elapsed), won: run.won.length, at: Date.now() });
+  state.runs = state.runs.slice(0, 8);
+  save();
+  renderRecords();
+  renderSetup();
+
+  const cards = run.won.slice(0, 3).map((id) => {
+    const d = dish(id);
+    return `<div class="reward"><div class="front">${img(id, d.name)}<b>${d.name}</b><span class="rarity r-${d.rarity}">${RARITY[d.rarity].label}</span></div><div class="back">?</div></div>`;
+  }).join('');
+  const extra = run.won.length > 3 ? `<p class="no-reward">+${run.won.length - 3} more in your kitchen</p>` : '';
+
+  $('#gPlay').hidden = true;
+  const r = $('#gResult');
+  r.hidden = false;
+  r.innerHTML = `
+    <div class="res-score">${isSet(m) ? `${run.correct}/5` : run.correct}</div>
+    <p class="res-verdict">${verdict}</p>
+    <div class="res-stats">
+      <span>Time ${fmt(run.elapsed)}</span>
+      <span>+${run.coinsWon} coins</span>
+      ${pb ? '<span class="pb">New personal best!</span>' : ''}
+    </div>
+    ${cards ? `<div class="rewards">${cards}</div>${extra}` : '<p class="no-reward">No dish this time. The uncle shakes his head.</p>'}
+    <div class="res-actions">
+      ${m === 'daily' ? '' : '<button class="btn btn-red" id="rAgain">Main lagi</button>'}
+      <button class="btn btn-yellow" id="rKitchen">Go to kitchen</button>
+      <button class="btn btn-paper" id="rClose">Close</button>
+    </div>`;
+  $('#rAgain')?.addEventListener('click', () => startGame());
+  $('#rKitchen').addEventListener('click', () => { closeGame(); $('#kitchen').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' }); });
+  $('#rClose').addEventListener('click', closeGame);
+  ($('#rAgain') || $('#rKitchen')).focus();
+}
+
+function closeGame() {
+  if (run) { clearTimeout(run.pending); run.over = true; }
+  run = null;
+  game.hidden = true;
+  document.body.style.overflow = '';
+  stage?.pause(false);
+  $('#startBtn').focus({ preventScroll: true });
+}
+
+function quit() {
+  if (run && !run.over) {
+    if (!confirm(`Quit this run? It won’t be saved${run.mode === 'daily' ? ', and today’s daily set is used up' : ''}.`)) return;
+  }
+  closeGame();
+}
+
+/* ---------- game input ---------- */
+$('#startBtn').addEventListener('click', () => startGame());
+$('#gQuit').addEventListener('click', quit);
+$('#gOptions').addEventListener('click', (e) => {
+  const b = e.target.closest('.opt');
+  if (b) answer(+b.dataset.k);
+});
+$('#gHints').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-hint]');
+  if (b) useHint(b.dataset.hint);
+});
+$('#gPlay').addEventListener('click', (e) => {
+  if (run?.locked && !e.target.closest('button')) proceed();
+});
+document.addEventListener('keydown', (e) => {
+  if (game.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); quit(); return; }
+  if (run && !run.over) {
+    if (/^[1-4]$/.test(e.key)) { e.preventDefault(); answer(+e.key - 1); return; }
+    if (e.key === 'Enter' && run.locked) { e.preventDefault(); proceed(); return; }
+  }
+  if (e.key === 'Tab') { // keep focus inside the dialog
+    const f = $$('button:not([disabled]), [tabindex="-1"]', game).filter((el) => el.offsetParent);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
+/* =========================================================
+   kitchen
+   ========================================================= */
+function renderKitchen() {
+  let value = 0;
+  $('#kitchenGrid').innerHTML = DISHES.map((d) => {
+    const n = state.inv[d.id] || 0, known = state.seen.includes(d.id);
+    const p = marketPrice(d), diff = Math.round(((p - d.price) / d.price) * 100);
+    value += n * p;
+    return `<article class="dish ${known ? '' : 'locked'}">
+      <div class="dish-img">${img(d.id, known ? d.name : 'Undiscovered dish')}
+        <span class="rarity r-${d.rarity}">${RARITY[d.rarity].label}</span>
+        ${n ? `<span class="qty" aria-label="${n} in kitchen">×${n}</span>` : ''}
+      </div>
+      <h3>${known ? d.name : ''}</h3>
+      <p>${known ? d.blurb : 'Win a set to discover this dish.'}</p>
+      <div class="price-row"><span>Today <b>${p}c</b></span>
+        <span class="${diff >= 0 ? 'trend-up' : 'trend-down'}">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff)}%</span></div>
+      <div class="dish-actions">
+        <button class="btn btn-yellow" data-sell="${d.id}" data-n="1" ${n ? '' : 'disabled'}>Sell 1</button>
+        <button class="btn btn-paper" data-sell="${d.id}" data-n="${n}" ${n > 1 ? '' : 'disabled'}>Sell all</button>
+      </div>
+    </article>`;
+  }).join('');
+  $('#kitchenValue').textContent = value;
+  $('#collectionNote').textContent = `You’ve discovered ${state.seen.length} of ${DISHES.length} dishes.`;
+  $('#sellAll').disabled = !dishTotal();
+}
+
+function sell(id, n) {
+  const have = state.inv[id] || 0;
+  n = Math.min(n, have);
+  if (!n) return;
+  const d = dish(id), earned = marketPrice(d) * n;
+  state.inv[id] = have - n;
+  addCoins(earned);
+  renderKitchen();
+  renderWallet('coins');
+  toast(`Sold ${n}× ${d.name} for <b>${earned} coins</b>`, id);
+}
+
+$('#kitchenGrid').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sell]');
+  if (b) sell(b.dataset.sell, +b.dataset.n);
+});
+$('#sellAll').addEventListener('click', () => {
+  const total = DISHES.reduce((s, d) => s + (state.inv[d.id] || 0) * marketPrice(d), 0);
+  if (!total || !confirm(`Sell every dish for ${total} coins?`)) return;
+  DISHES.forEach((d) => { state.inv[d.id] = 0; });
+  addCoins(total);
+  renderKitchen();
+  renderWallet('coins');
+  toast(`Kitchen cleared for <b>${total} coins</b>`);
+});
+
+/* =========================================================
+   shop
+   ========================================================= */
+const BADGE = { fifty: '50:50', auntie: 'MAK', clue: '?', freeze: '10s', skip: '»' };
+function renderShop() {
+  $('#shopList').innerHTML = HINTS.map((h) => `
+    <div class="hint-card">
+      <span class="hint-badge" aria-hidden="true">${BADGE[h.id]}</span>
+      <div><b>${h.name}</b><small>${h.malay}</small><p>${h.desc}</p></div>
+      <div class="hint-buy">
+        <span class="owned">Owned: ${state.hints[h.id] || 0}</span>
+        <button class="btn btn-small btn-red" data-buy="${h.id}" ${state.coins >= h.price ? '' : 'disabled'}>Buy · ${h.price}c</button>
+      </div>
+    </div>`).join('');
+}
+$('#shopList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-buy]');
+  if (!b) return;
+  const h = HINTS.find((x) => x.id === b.dataset.buy);
+  if (state.coins < h.price) return;
+  state.coins -= h.price;
+  state.hints[h.id] = (state.hints[h.id] || 0) + 1;
+  save();
+  renderWallet('coins');
+  renderShop();
+  toast(`Bought <b>${h.name}</b>. You now have ${state.hints[h.id]}.`);
+});
+
+/* =========================================================
+   records
+   ========================================================= */
+function renderRecords() {
+  const b = state.best;
+  const lastDaily = state.runs.find((r) => r.mode === 'daily' && new Date(r.at).toLocaleDateString('en-CA') === today());
+  $('#bestList').innerHTML = [
+    ['Biasa', b.classic ? fmt(b.classic) : '—', 'fastest passing set'],
+    ['Kilat', b.blitz ?? '—', 'most correct in 60s'],
+    ['Satu Nyawa', b.survival ?? '—', 'longest streak'],
+    ['Harian', lastDaily ? lastDaily.score : state.daily === today() ? 'quit' : 'open', lastDaily ? `today in ${fmt(lastDaily.time)}` : 'today’s set'],
+  ].map(([k, v, s]) => `<div class="best-card"><small>${k}</small><b>${v}</b><span>${s}</span></div>`).join('');
+
+  $('#runList').innerHTML = state.runs.length
+    ? state.runs.map((r) => `<tr><td>${mode(r.mode).name}</td><td>${cat(r.cat).name}</td><td>${r.score}</td><td>${fmt(r.time)}</td><td>${r.won ? `${r.won} dish${r.won > 1 ? 'es' : ''}` : '—'}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">no runs yet — go play lah</td></tr>';
+}
+
+$('#resetBtn').addEventListener('click', () => {
+  if (!confirm('Wipe all coins, dishes, hints and records?')) return;
+  state = fresh();
+  save();
+  renderAll();
+});
 
 /* ---------- boot ---------- */
-async function boot() {
-  $('#year').textContent = new Date().getFullYear();
-  $('#authorName').textContent = CONFIG.name;
-  $('#githubLink').href = CONFIG.github;
-
-  renderMenu();
-  renderPassport();
-  renderHUD();
-  initTarik();
-  initQuiz();
-  initObservers();
-
-  const chili = $('#chili');
-  if (state.badges.includes('chili-hunter')) chili.classList.add('found');
-  chili.addEventListener('click', () => { chili.classList.add('found'); unlock('chili-hunter'); });
-
-  $('#resetBtn').addEventListener('click', () => {
-    if (!confirm('Reset all XP, stamps and badges?')) return;
-    state.collected.forEach((id) => scene3d?.markCollected(id, false));
-    state = fresh();
-    save();
-    DISHES.forEach((d) => updateCard(d.id));
-    renderHUD(); renderPassport(); renderTarikStats(0);
-    chili.classList.remove('found');
-  });
-
-  const tip = $('#tooltip'), hero = $('#hero');
-  try {
-    const { initScene } = await import('./scene.js');
-    scene3d = initScene($('#scene'), {
-      dishIds: DISHES.map((d) => d.id),
-      reducedMotion,
-      reserveEl: $('.hero-copy'),
-      onCollect: collect,
-      onHover(id, x, y) {
-        if (!id) { tip.hidden = true; return; }
-        const d = DISHES.find((z) => z.id === id), got = state.collected.includes(id);
-        tip.innerHTML = `${d.name}<small>${got ? 'Stamped ✓' : 'Tap to collect · +50 XP'}</small>`;
-        tip.style.left = x + 'px';
-        tip.style.top = y + 'px';
-        tip.hidden = false;
-      },
-    });
-    snapshots = scene3d.snapshots;
-    state.collected.forEach((id) => scene3d.markCollected(id));
-    applySnapshots();
-  } catch (err) {
-    console.warn('3D disabled:', err);
-    $('#webglFallback').hidden = false;
-    hero.classList.add('no-3d');
-  }
+function renderAll() {
+  renderWallet();
+  renderSetup();
+  renderKitchen();
+  renderShop();
+  renderRecords();
 }
 
-boot();
+$('#authorName').textContent = CONFIG.name;
+$('#githubLink').href = CONFIG.github;
+renderAll();
+
+try {
+  const { initStage } = await import('./stage.js');
+  stage = initStage($('#stage'), { dishIds: DISHES.map((d) => d.id), reducedMotion });
+  snapshots = stage.snapshots;
+  renderKitchen();
+} catch (err) {
+  console.warn('3D disabled:', err);
+}
