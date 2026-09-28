@@ -334,9 +334,10 @@ function buildCar({ body: bodyColor, wheels: wheelColor, roof }) {
   for (const sx of [-0.91, 0.91]) add(new THREE.BoxGeometry(0.06, 0.45, 1.5), glass, sx, 1.52, -0.25, body);
   const stripe = add(new THREE.BoxGeometry(2.04, 0.14, 3.64), toon(bodyColor === 0xd8321f ? 0xfbf6ea : 0xd8321f), 0, 0.72, 0, body);
   stripe.userData.noInk = true;
+  const lights = { front: [], back: [] };
   for (const sx of [-0.65, 0.65]) {
-    add(new THREE.BoxGeometry(0.4, 0.2, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff4c2 }), sx, 0.9, 1.81, body);
-    add(new THREE.BoxGeometry(0.4, 0.18, 0.08), new THREE.MeshBasicMaterial({ color: 0xff3b2f }), sx, 0.9, -1.81, body);
+    lights.front.push(add(new THREE.BoxGeometry(0.4, 0.2, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff4c2 }), sx, 0.9, 1.81, body));
+    lights.back.push(add(new THREE.BoxGeometry(0.4, 0.18, 0.08), new THREE.MeshBasicMaterial({ color: 0xff3b2f }), sx, 0.9, -1.81, body));
   }
   const wheels = [], front = [];
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
@@ -360,7 +361,7 @@ function buildCar({ body: bodyColor, wheels: wheelColor, roof }) {
   else if (roof === 'teh') { orn = buildDish('teh-tarik', 1.0); orn.position.set(0, 2.4, -0.3); }
   else if (roof === 'bunga') { orn = buildHibiscus(); orn.scale.multiplyScalar(0.42); orn.position.set(0, 2.2, -0.3); }
   if (orn) { orn.traverse((o) => { if (o.isMesh) o.castShadow = true; }); body.add(orn); }
-  Object.assign(g.userData, { body, wheels, front, shell, dented: false });
+  Object.assign(g.userData, { body, wheels, front, shell, lights, glass, dented: false });
   return g;
 }
 
@@ -416,7 +417,7 @@ function pose(obj, st, dt, throttle = 0) {
   obj.position.set(st.x, 0, st.z);
   obj.rotation.y = st.heading;
   const { body, wheels, front } = obj.userData;
-  body.rotation.z = -st.steer * st.speed * 0.006;
+  body.rotation.z = -st.steer * st.speed * 0.006 + (body.userData.lean || 0);
   body.rotation.x = -throttle * 0.03;
   wheels.forEach((w) => { w.children[0].rotation.x += st.speed * dt / 0.42; w.children[1].rotation.x = w.children[0].rotation.x; });
   front.forEach((w) => { w.rotation.y = st.steer * 0.45; });
@@ -718,7 +719,7 @@ function bumpCars(dt) {
   drive.speed *= 0.6; rival.speed *= 0.6;
   sparks(hitPoint);
   if (contact.count === 1) {
-    dent(car, hitPoint); dent(rivalCar, hitPoint);
+    dent(car, rival.x, rival.z); dent(rivalCar, drive.x, drive.z);
     hint('Bang! Both cars dented. One more hit and someone blows up.');
   } else {
     const rivalWasRammed = pClose >= rClose;
@@ -742,25 +743,39 @@ function rebuildRival() {
   pose(rivalCar, rival, 0);
 }
 
-/** Crumple the shell around a world-space impact point. */
-function dent(obj, worldPoint) {
+/** Crumple the side of the car facing the other car: shell pushed in, lights smashed, glass cracked. */
+function dent(obj, otherX, otherZ) {
   obj.updateMatrixWorld(true);
+  const c = obj.position;
+  const dir = new THREE.Vector3(otherX - c.x, 0, otherZ - c.z).normalize();
+  const impact = c.clone().addScaledVector(dir, 1.9).setY(0.9); // on the shell, not inside it
   for (const m of obj.userData.shell) {
-    const local = m.worldToLocal(worldPoint.clone());
+    const local = m.worldToLocal(impact.clone());
+    const inward = dir.clone().negate().transformDirection(new THREE.Matrix4().copy(m.matrixWorld).invert()).normalize();
     const pos = m.geometry.attributes.position, v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       const dist = v.distanceTo(local);
-      if (dist > 1.6) continue;
-      const k = (1.6 - dist) / 1.6;
-      v.lerp(new THREE.Vector3(0, 0, 0), k * 0.22);            // pushed in towards the middle
-      v.x += (Math.random() - 0.5) * 0.12 * k; v.y += (Math.random() - 0.5) * 0.1 * k;
+      if (dist > 2.1) continue;
+      let k = (2.1 - dist) / 2.1;
+      k = k * k * (3 - 2 * k);
+      v.addScaledVector(inward, k * 0.6);                        // caved in
+      v.x += (Math.random() - 0.5) * 0.22 * k;                   // crumpled, not a clean push
+      v.y += (Math.random() - 0.5) * 0.2 * k;
+      v.z += (Math.random() - 0.5) * 0.22 * k;
       pos.setXYZ(i, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
     m.geometry.computeVertexNormals();
   }
-  obj.userData.body.rotation.y = (Math.random() - 0.5) * 0.08; // knocked slightly out of true
+  // which end took it: smash those lights
+  const localHit = obj.userData.body.worldToLocal(impact.clone());
+  const smashed = localHit.z > 0.6 ? obj.userData.lights.front : localHit.z < -0.6 ? obj.userData.lights.back : [];
+  smashed.forEach((l) => { l.material = new THREE.MeshBasicMaterial({ color: 0x3a3632 }); l.rotation.z = (Math.random() - 0.5) * 0.8; });
+  obj.userData.glass.color.set(0xc9d6ea);                        // cracked, milky windows
+  const body = obj.userData.body;
+  body.rotation.y = (Math.random() - 0.5) * 0.12;               // knocked out of true
+  body.userData.lean = (localHit.x > 0 ? 1 : -1) * 0.07;         // sags on the hit side
   obj.userData.dented = true;
 }
 
