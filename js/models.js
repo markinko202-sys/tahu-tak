@@ -343,7 +343,7 @@ export function buildTowers() {
 
   // skybridge: double deck between floors 41–42 with an inverted-V support
   const bridgeY = 41 * FLOOR;
-  g.add(mesh(new THREE.BoxGeometry(1.0, 0.16, 0.22), M(0xd8321f), 0, bridgeY, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.0, 0.16, 0.22), glass, 0, bridgeY, 0));
   g.add(mesh(new THREE.BoxGeometry(1.04, 0.03, 0.25), steel, 0, bridgeY + 0.09, 0));
   g.add(mesh(new THREE.BoxGeometry(1.04, 0.03, 0.25), steel, 0, bridgeY - 0.09, 0));
   const legTop = new THREE.Vector3(0, bridgeY - 0.1, 0);
