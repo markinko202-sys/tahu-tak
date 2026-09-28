@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildDish, buildTowers, buildTingkat, buildCoin, buildHibiscus } from './models.js?v=20260928b';
+import { buildDish, buildTowers, buildTingkat, buildCoin, buildHibiscus } from './models.js?v=20260928c';
 
 /**
  * One fixed, full-viewport WebGL canvas. Each 3D prop is pinned to an empty

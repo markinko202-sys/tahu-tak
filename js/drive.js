@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { inkify, buildDish, buildTowers, buildHibiscus } from './models.js?v=20260928b';
-import { DISHES } from './data.js?v=20260928b';
-import { sound, bindMuteButton } from './audio.js?v=20260928b';
+import { inkify, buildDish, buildTowers, buildHibiscus } from './models.js?v=20260928c';
+import { DISHES } from './data.js?v=20260928c';
+import { sound, bindMuteButton } from './audio.js?v=20260928c';
 
 /* =========================================================
    Makan Trip — drive around the city, taste your dishes, race.

@@ -1,5 +1,5 @@
-import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js?v=20260928b';
-import { sound, bindMuteButton } from './audio.js?v=20260928b';
+import { CATEGORIES, MODES, HINTS, RARITY, DISHES, QUESTIONS } from './data.js?v=20260928c';
+import { sound, bindMuteButton } from './audio.js?v=20260928c';
 
 /* ---------- personalise here ---------- */
 const CONFIG = { name: 'markinko202-sys', github: 'https://github.com/markinko202-sys' };
@@ -612,7 +612,7 @@ renderAll();
 // let the page paint first; building the 3D stage and dish photos can take a moment on phones
 await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 600 }) : setTimeout(r, 60)));
 try {
-  const { initStage } = await import('./stage.js?v=20260928b');
+  const { initStage } = await import('./stage.js?v=20260928c');
   stage = initStage($('#stage'), { dishIds: DISHES.map((d) => d.id), reducedMotion });
   snapshots = stage.snapshots;
   renderKitchen();
