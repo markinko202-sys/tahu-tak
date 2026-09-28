@@ -551,8 +551,31 @@ const gates = GATE_SPOTS.map(({ x, z, ang }, k) => {
   g.rotation.y = ang;
   g.visible = false;
   scene.add(g);
-  return { x, z, obj: g };
+  // inside a junction the gate may also turn across; on a plain straight it can only flip
+  const onLine = (v) => LINES.some((l) => Math.abs(v - l) < ROAD / 2);
+  const axes = [ang, ang + Math.PI];
+  if (onLine(x) && onLine(z)) axes.push(ang + Math.PI / 2, ang - Math.PI / 2);
+  return { x, z, obj: g, axes, cur: ang };
 });
+const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+/** The active gates swing round to face you as you approach, snapping to a direction the road allows. */
+function aimGates(dt) {
+  for (const k of [race.idx, race.idx + 1]) {
+    const g = gates[k];
+    if (!g || !g.obj.visible) continue;
+    const dist = Math.hypot(g.x - drive.x, g.z - drive.z);
+    if (dist < 80 && dist > GATE_R) {
+      const want = Math.atan2(g.x - drive.x, g.z - drive.z); // direction you are coming from
+      g.target = g.axes.reduce((best, a) => (Math.abs(wrap(a - want)) < Math.abs(wrap(best - want)) ? a : best), g.axes[0]);
+    }
+    if (g.target === undefined) continue;
+    // springy turn: a little overshoot so it reads as the gate reacting to you
+    g.vel = (g.vel || 0) + wrap(g.target - g.cur) * 60 * dt;
+    g.vel *= Math.exp(-9 * dt);
+    g.cur += g.vel * dt;
+    g.obj.rotation.y = g.cur;
+  }
+}
 const GATE_R = ROAD / 2 + 1.2;
 
 /* rival AI: follows the road corners, brakes for turns, mild rubber band */
@@ -621,6 +644,7 @@ function startRace(mode) {
   pose(rivalCar, rival, 0);
   camPos.set(drive.x, 7.5, drive.z - 11);
   Object.assign(race, { running: false, countingDown: true, idx: 0, t: 0 });
+  gates.forEach((g) => { g.cur = g.axes[0]; g.vel = 0; g.target = undefined; g.obj.rotation.y = g.cur; });
   showGates();
   $('#raceHud').hidden = false;
   $('#racePos').hidden = !duel;
@@ -844,6 +868,7 @@ function sim(dt) {
   follow(dt);
   checkCafes();
   checkGates();
+  if (race.running || race.countingDown) aimGates(dt);
   if (race.running) { race.t += dt * 1000; $('#raceTime').textContent = fmt(race.t); }
   if (arrow.visible) {
     const g = gates[race.idx];
