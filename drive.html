@@ -45,6 +45,7 @@
     <div class="race-pos" id="racePos" hidden>1st</div>
   </div>
   <div class="countdown" id="countdown" hidden></div>
+  <div class="drift-meter" id="drift" hidden aria-live="off"></div>
 
   <!-- touch controls -->
   <div class="touch" id="touch" aria-hidden="true">
@@ -52,7 +53,7 @@
       <button data-key="left">◀</button><button data-key="right">▶</button>
     </div>
     <div class="touch-right">
-      <button data-key="down">▼</button><button data-key="up" class="gas">▲</button>
+      <button data-key="drift" class="drift-btn">DRIFT</button><button data-key="down">▼</button><button data-key="up" class="gas">▲</button>
     </div>
   </div>
 
@@ -64,6 +65,7 @@
       <p>You collected every dish. Now go and eat them. Drive around the city and stop at the cafés. Each one serves a dish you unlocked.</p>
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys to drive</li>
+        <li><kbd>Shift</kbd> drift — hold it through a corner, let go for a turbo</li>
         <li><kbd>R</kbd> race — time trial or 1 vs 1 (after tasting everything)</li>
         <li><kbd>G</kbd> garage — paint your car and pick a roof ornament</li>
         <li><kbd>Esc</kbd> leave a café or quit a race</li>

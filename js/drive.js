@@ -387,16 +387,19 @@ scene.add(arrow);
 
 /* ---------- driving model (arcade), shared by player and rival ---------- */
 const START = { x: -13, z: -70 };
-const drive = { x: START.x, z: START.z, heading: 0, speed: 0, steer: 0, shake: 0 };
-const keys = { up: false, down: false, left: false, right: false };
+// heading = where the nose points, vdir = where the car actually travels (they split while drifting)
+const drive = { x: START.x, z: START.z, heading: 0, vdir: 0, speed: 0, steer: 0, shake: 0, boost: 0 };
+const keys = { up: false, down: false, left: false, right: false, drift: false };
+const angWrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const RADIUS = 1.3;
 const hits = (x, z) =>
   Math.abs(x) > EDGE - RADIUS || Math.abs(z) > EDGE - RADIUS ||
   colliders.some((c) => x > c.x0 - RADIUS && x < c.x1 + RADIUS && z > c.z0 - RADIUS && z < c.z1 + RADIUS);
 
-/** Move a car state by its speed and heading, sliding along walls. Returns true on a hard hit. */
+/** Move a car state along its travel direction, sliding along walls. Returns true on a hard hit. */
 function move(st, dt) {
-  const fx = Math.sin(st.heading), fz = Math.cos(st.heading);
+  const dir = st.vdir ?? st.heading;
+  const fx = Math.sin(dir), fz = Math.cos(dir);
   const nx = st.x + fx * st.speed * dt, nz = st.z + fz * st.speed * dt;
   if (!hits(nx, nz)) { st.x = nx; st.z = nz; return false; }
   if (!hits(nx, st.z)) { st.x = nx; st.speed *= 0.9; return false; }
@@ -422,20 +425,90 @@ function step(dt) {
   if (throttle > 0) drive.speed += (drive.speed < 0 ? 40 : 16) * dt;
   else if (throttle < 0) drive.speed -= (drive.speed > 0 ? 34 : 10) * dt;
   drive.speed *= 1 - (throttle ? 0.35 : 1.4) * dt;
-  drive.speed = Math.max(-8, Math.min(26, drive.speed));
+  if (drive.boost > 0) { drive.boost -= dt; drive.speed += 26 * dt; } // mini-turbo after a good drift
+  drive.speed = Math.max(-8, Math.min(drive.boost > 0 ? 33 : 26, drive.speed));
   if (Math.abs(drive.speed) < 0.05 && !throttle) drive.speed = 0;
   drive.steer += (steerIn - drive.steer) * Math.min(1, dt * 8);
   const grip = Math.min(1, Math.abs(drive.speed) / 8) * Math.sign(drive.speed);
-  drive.heading += drive.steer * 2.1 * grip * dt;
-  if (move(drive, dt)) drive.shake = 0.5;
+
+  // drift: hold Shift above walking pace — the nose turns harder while the car keeps sliding the old way
+  const wantDrift = input && keys.drift && drive.speed > 7;
+  if (wantDrift && !drift.on) Object.assign(drift, { on: true, time: 0, points: 0 });
+  if (drift.on) drift.time += dt;
+  drive.heading += drive.steer * (drift.on ? 2.9 : 2.1) * grip * dt;
+  drive.vdir += angWrap(drive.heading - drive.vdir) * Math.min(1, (drift.on ? 2.4 : 12) * dt);
+  const slip = Math.abs(angWrap(drive.heading - drive.vdir));
+  if (drift.on) {
+    drive.speed *= 1 - 0.3 * dt;
+    if (slip > 0.18 && drive.speed > 8) { drift.points += slip * drive.speed * dt * 12; tyreFx(dt); }
+    renderDrift();
+  }
+  if (drift.on && !wantDrift) endDrift();
+  if (move(drive, dt)) { drive.shake = 0.5; if (drift.on) endDrift(true); }
   pose(car, drive, dt, throttle);
+}
+
+/* ---------- drift extras: score, mini-turbo, skid marks, tyre smoke ---------- */
+const drift = { on: false, time: 0, points: 0, fxT: 0 };
+function renderDrift() {
+  const el = $('#drift');
+  el.hidden = false;
+  const ready = drift.time > 0.8 && drift.points > 40;
+  el.classList.toggle('ready', ready);
+  el.innerHTML = `Drift <b>${Math.round(drift.points)}</b>${ready ? '<small>turbo ready</small>' : ''}`;
+}
+function endDrift(crashed = false) {
+  drift.on = false;
+  const el = $('#drift');
+  if (!crashed && drift.time > 0.8 && drift.points > 40) {
+    drive.boost = 0.9;
+    el.innerHTML = `Turbo! <b>+${Math.round(drift.points)}</b>`;
+    el.classList.add('ready');
+  } else if (crashed) {
+    el.innerHTML = 'Adoi! <b>0</b>';
+    el.classList.remove('ready');
+  }
+  clearTimeout(endDrift.t);
+  endDrift.t = setTimeout(() => { if (!drift.on) el.hidden = true; }, 900);
+}
+const SKIDS = 500;
+const skidMat = new THREE.MeshBasicMaterial({ color: 0x2a2630, transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+const skids = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.36, 0.8).rotateX(-Math.PI / 2), skidMat, SKIDS);
+skids.frustumCulled = false;
+{ const zero = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < SKIDS; i++) skids.setMatrixAt(i, zero); }
+scene.add(skids);
+let skidI = 0;
+function tyreFx(dt) {
+  drift.fxT -= dt;
+  if (drift.fxT > 0) return;
+  drift.fxT = 0.03;
+  const c = Math.cos(drive.heading), sn = Math.sin(drive.heading);
+  for (const side of [-1, 1]) {
+    // rear wheel in world space
+    const lx = side * 1.0, lz = -1.15;
+    const x = drive.x + lx * c + lz * sn, z = drive.z - lx * sn + lz * c;
+    _q.setFromAxisAngle(UP, drive.heading);
+    _m.compose(_p.set(x, 0.04, z), _q, _s.set(1, 1, 1));
+    skids.setMatrixAt(skidI, _m);
+    skidI = (skidI + 1) % SKIDS;
+    if (Math.random() < 0.6) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.35 + Math.random() * 0.25, 8, 6), new THREE.MeshBasicMaterial({ color: 0xeeeae2, transparent: true, opacity: 0.7 }));
+      puff.position.set(x, 0.4, z);
+      puff.userData.v = new THREE.Vector3((Math.random() - 0.5) * 1.2, 0.8 + Math.random(), (Math.random() - 0.5) * 1.2);
+      puff.userData.life = 0.8;
+      scene.add(puff);
+      puffs.push(puff);
+    }
+  }
+  skids.instanceMatrix.needsUpdate = true;
 }
 
 /* ---------- chase camera that never enters buildings ---------- */
 const camPos = new THREE.Vector3(drive.x, 9, drive.z - 12);
 const camLook = new THREE.Vector3();
 function follow(dt) {
-  const fx = Math.sin(drive.heading), fz = Math.cos(drive.heading);
+  const camDir = drive.vdir + angWrap(drive.heading - drive.vdir) * 0.35; // mostly travel direction: drifts look sideways
+  const fx = Math.sin(camDir), fz = Math.cos(camDir);
   const back = race.running ? 11 : 12, up = race.running ? 7.5 : 9.5;
   let free = 1;
   for (let k = 1; k <= 12; k++) {
@@ -638,7 +711,7 @@ function startRace(mode) {
   $('#result').hidden = true;
   race.mode = mode;
   const duel = mode === 'duel';
-  Object.assign(drive, { x: START.x - (duel ? 2.6 : 0), z: START.z, heading: 0, speed: 0, steer: 0 });
+  Object.assign(drive, { x: START.x - (duel ? 2.6 : 0), z: START.z, heading: 0, vdir: 0, speed: 0, steer: 0, boost: 0 });
   Object.assign(rival, { x: START.x + 2.6, z: START.z, heading: 0, speed: 0, steer: 0, wp: 1, gate: 0, done: false });
   rivalCar.visible = duel;
   pose(rivalCar, rival, 0);
@@ -794,7 +867,7 @@ function minimap() {
 }
 
 /* ---------- input ---------- */
-const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ShiftLeft: 'drift', ShiftRight: 'drift' };
 addEventListener('keydown', (e) => {
   if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; if (!modalOpen()) e.preventDefault(); }
   if (e.code === 'Escape') {

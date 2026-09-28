@@ -69,6 +69,12 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
 .countdown span { animation: cd .9s ease-out both; }
 @keyframes cd { from { transform: scale(1.8); opacity: 0; } 30% { transform: scale(1); opacity: 1; } to { opacity: 0; } }
 
+.drift-meter { position: fixed; left: 50%; top: 128px; transform: translateX(-50%) rotate(-3deg); z-index: 11; padding: 6px 18px; background: var(--card); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); font: 400 30px/1 var(--f-display); text-transform: uppercase; text-align: center; pointer-events: none; }
+.drift-meter b { color: var(--red); font-family: var(--f-mono); font-size: 26px; margin-left: 6px; }
+.drift-meter small { display: block; font: 700 11px var(--f-mono); letter-spacing: 1px; color: var(--green); margin-top: 3px; }
+.drift-meter.ready { background: var(--yellow); animation: wiggle .25s infinite alternate; }
+@keyframes wiggle { to { transform: translateX(-50%) rotate(3deg) scale(1.05); } }
+
 /* ---------- modals ---------- */
 .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(22, 19, 14, .35); }
 .card { width: min(520px, 100%); background: var(--card); border: var(--bw) solid var(--ink); box-shadow: 10px 10px 0 var(--ink); padding: 28px; animation: pop .35s cubic-bezier(.3,1.5,.5,1); }
@@ -112,6 +118,7 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
 .touch div { display: flex; gap: 12px; pointer-events: auto; }
 .touch button { width: 64px; height: 64px; border: var(--bw) solid var(--ink); background: rgba(255, 250, 240, .9); box-shadow: 4px 4px 0 var(--ink); font-size: 22px; touch-action: none; }
 .touch button.gas { background: var(--yellow); }
+.touch button.drift-btn { width: 76px; font: 800 13px var(--f-body); background: var(--red); color: #fff; }
 .touch button.on { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
 @media (pointer: coarse) { .touch { display: flex; } }
 
