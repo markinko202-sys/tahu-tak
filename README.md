@@ -19,10 +19,13 @@ A Malaysia trivia game you can eat. Pass a set of questions to win a hawker dish
 
 ## Makan Trip (unlocks at 10/10 dishes)
 
-- **Drive**: a toon city of Peranakan shophouses, condos, trees and street lamps around KLCC. Buildings, trees and markings are instanced, and every instance gets an instanced ink outline.
-- **Cafés**: 10 hawker stalls, one per dish. A stall only opens if you have won its dish. Drive into its ring to taste the dish, which earns coins and a stamp. Stalls stay shuttered until the dish is unlocked.
-- **Lumba (race)**: once you have tasted everything, race through 12 red gates. There is a countdown, a guiding arrow, a minimap marker and a saved best lap.
-- **Controls**: an arcade car model with a chase camera that avoids buildings. Supports WASD / arrows and on-screen touch controls.
+- **City**: a 7×7 toon city of Peranakan shophouses, condos, trees and lamps around KLCC, with 10-unit roads and a ring road. Everything is instanced, and each instance gets an instanced ink outline.
+- **Cafés**: 10 hawker stalls, one per dish. Drive into a stall's ring to taste its dish. The dialog only appears the first time, and stalls stay shuttered until you win the dish in the quiz.
+- **Garage (G)**: body colour, wheel colour and roof ornament (tingkat, durian, teh tarik, bunga raya). The minimap icon is a tiny top-down copy of your car.
+- **Races (R)**:
+  - **Time trial**: 16 gates placed mid-straight and exactly road-wide, so they never clip into buildings.
+  - **1 vs 1**: race Ah Beng. The AI follows the road corners, brakes for turns, has a mild rubber band, and the cars bump off each other.
+- **Rendering**: normal-biased shadows (no acne), anisotropic 2× facade textures, no overlapping geometry, and a low-band KLCC variant so the towers don't moiré at distance.
 - **Preview**: `drive.html?preview=1` (or `index.html?preview=1`) unlocks everything without touching real progress.
 
 ## Tech

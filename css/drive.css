@@ -86,6 +86,27 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
 .cafe-done { font: 400 26px var(--f-hand); color: var(--green); }
 .res-time { font: 700 56px var(--f-mono); margin: 0 0 6px !important; }
 
+.race-pos { display: inline-block; margin: 6px 0 0 6px; font: 400 24px var(--f-display); text-transform: uppercase; background: var(--card); border: 2px solid var(--ink); padding: 2px 12px; }
+.race-pos.first { background: var(--green); color: #fff; }
+.race-modes { display: grid; gap: 12px; margin: 4px 0 18px; }
+.race-mode { text-align: left; padding: 14px 16px; background: var(--card); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); transition: transform .08s, box-shadow .08s; }
+.race-mode:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); background: var(--yellow); }
+.race-mode b { display: block; font: 400 32px/1 var(--f-display); text-transform: uppercase; }
+.race-mode span { display: block; font-size: 15px; margin: 4px 0; }
+.race-mode small { font: 700 12px var(--f-mono); color: var(--ink-soft); }
+
+/* garage slides in from the right so the car stays visible */
+.modal-side { place-items: center end; background: transparent; pointer-events: none; }
+.modal-side .card { pointer-events: auto; width: min(360px, 100%); margin-right: 8px; }
+.garage h2 { font-size: 46px; }
+.g-label { margin: 14px 0 8px; font: 700 12px var(--f-mono); text-transform: uppercase; letter-spacing: 1px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { width: 38px; height: 38px; border: var(--bw) solid var(--ink); box-shadow: 3px 3px 0 var(--ink); border-radius: 50%; }
+.swatch[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 3px; transform: scale(1.1); }
+.roofs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+.roof-opt { min-height: 42px; padding: 0 10px; background: var(--card); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); font-weight: 800; font-size: 14px; }
+.roof-opt[aria-pressed="true"] { background: var(--yellow); }
+
 /* ---------- touch ---------- */
 .touch { display: none; position: fixed; left: 0; right: 0; bottom: 70px; z-index: 9; justify-content: space-between; padding: 0 14px; pointer-events: none; }
 .touch div { display: flex; gap: 12px; pointer-events: auto; }
@@ -100,6 +121,7 @@ kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; 
 .toast img { width: 40px; height: 40px; }
 
 @media (pointer: coarse) { .hud-bottom { bottom: 14px; } .touch { bottom: 128px; } }
+@media (max-width: 640px) { .modal-side { place-items: end center; } .modal-side .card { margin: 0 0 8px; max-height: 70vh; overflow: auto; } }
 @media (max-width: 640px) {
   .trip-title, .preview-tag { display: none; }
   .minimap canvas { width: 110px; height: 110px; }

@@ -279,7 +279,7 @@ const slab = (R, h) => {
 
 const flat = (g) => (g.index ? g.toNonIndexed() : g);
 
-export function buildTowers() {
+export function buildTowers({ bandEvery = 1 } = {}) {
   const steel = M(0xe4e8ee), glass = M(0x5f86a8), lit = M(0xffd23d, { emissive: 0xf5b700, emissiveIntensity: 0.6 });
   const FLOOR = 0.085;
   const tiers = [[0.62, 52], [0.57, 10], [0.52, 8], [0.46, 7], [0.39, 6], [0.31, 5]]; // [radius, floors]
@@ -294,7 +294,9 @@ export function buildTowers() {
       const h = floors * FLOOR;
       glassParts.push(slab(R * 0.965, h).translate(0, y, 0));
       for (let f = 0; f <= floors; f++) {
-        steelParts.push(slab(R, FLOOR * 0.3).translate(0, y + f * FLOOR - FLOOR * 0.15, 0));
+        // far-away copies (the city) use fewer, thicker bands so thin stripes don't shimmer
+        const band = FLOOR * 0.3 * (bandEvery > 1 ? 2.2 : 1);
+        if (f % bandEvery === 0 || f === floors) steelParts.push(slab(R, band).translate(0, y + f * FLOOR - band / 2, 0));
         if (f < floors && r01() < 0.16) {
           const a = Math.floor(r01() * 16) * (Math.PI / 8) + Math.PI / 16;
           const win = new THREE.BoxGeometry(R * 0.28, FLOOR * 0.55, 0.01);

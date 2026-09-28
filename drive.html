@@ -32,6 +32,7 @@
   <div class="hud-bottom">
     <span class="pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18a9 9 0 0 1-18 0Z"/><path d="M9 8c0-1.5 1-1.5 1-3M14 8c0-1.5 1-1.5 1-3"/></svg><b id="tastedCount">0/0</b><span>tasted</span></span>
     <span class="pill"><i class="coin-ico" aria-hidden="true"></i><b id="coinCount">0</b></span>
+    <button class="btn btn-paper" id="garageBtn">Garaj · Garage</button>
     <button class="btn btn-red" id="raceBtn" disabled>Lumba! · Race</button>
   </div>
 
@@ -41,6 +42,7 @@
   <div class="race-hud" id="raceHud" hidden>
     <div class="race-time" id="raceTime">00:00.0</div>
     <div class="race-cp" id="raceCp">Gate 0/0</div>
+    <div class="race-pos" id="racePos" hidden>1st</div>
   </div>
   <div class="countdown" id="countdown" hidden></div>
 
@@ -62,7 +64,8 @@
       <p>You collected every dish. Now go and eat them. Drive around the city and stop at the cafés. Each one serves a dish you unlocked.</p>
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys to drive</li>
-        <li><kbd>R</kbd> start a race once you have tasted everything</li>
+        <li><kbd>R</kbd> race — time trial or 1 vs 1 (after tasting everything)</li>
+        <li><kbd>G</kbd> garage — paint your car and pick a roof ornament</li>
         <li><kbd>Esc</kbd> leave a café or quit a race</li>
       </ul>
       <button class="btn btn-red btn-big" id="startDrive">Jom, jalan!</button>
@@ -86,6 +89,34 @@
         <button class="btn btn-red" id="tasteBtn">Rasa! · Taste</button>
         <button class="btn btn-paper" id="leaveBtn">Jalan · Leave</button>
       </div>
+    </div>
+  </div>
+
+  <!-- race menu -->
+  <div class="modal" id="raceMenu" hidden>
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="raceMenuTitle">
+      <p class="eyebrow">Lumba · Race</p>
+      <h2 id="raceMenuTitle">Pick a race</h2>
+      <div class="race-modes">
+        <button class="race-mode" id="modeTrial"><b>Time trial</b><span>Just you and the clock. Beat your best lap.</span><small id="bestTrial">No lap yet</small></button>
+        <button class="race-mode" id="modeDuel"><b>1 vs 1</b><span>Race Ah Beng in his red kancil. First through the finish wins.</span><small id="duelRecord">0 wins · 0 losses</small></button>
+      </div>
+      <button class="btn btn-paper" id="raceMenuClose">Not now</button>
+    </div>
+  </div>
+
+  <!-- garage -->
+  <div class="modal modal-side" id="garage" hidden>
+    <div class="card garage" role="dialog" aria-modal="true" aria-labelledby="garageTitle">
+      <p class="eyebrow">Garaj · Garage</p>
+      <h2 id="garageTitle">Your kancil</h2>
+      <h3 class="g-label">Body</h3>
+      <div class="swatches" id="swBody"></div>
+      <h3 class="g-label">Wheels</h3>
+      <div class="swatches" id="swWheels"></div>
+      <h3 class="g-label">On the roof</h3>
+      <div class="roofs" id="swRoof"></div>
+      <button class="btn btn-red" id="garageDone">Done</button>
     </div>
   </div>
 
