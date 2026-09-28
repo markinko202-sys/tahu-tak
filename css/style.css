@@ -191,6 +191,18 @@ h2 { font-size: clamp(48px, 7vw, 104px); line-height: .9; margin-bottom: 22px; }
 .kitchen-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 30px; font-size: 18px; }
 .kitchen-foot b { font-family: var(--f-mono); }
 
+/* ---------- Makan Trip unlock card ---------- */
+.trip-card { display: flex; align-items: center; gap: 18px; margin-top: 30px; padding: 18px 22px; background: var(--ink); color: var(--paper); border: var(--bw) solid var(--ink); box-shadow: 6px 6px 0 var(--red); text-decoration: none; transition: transform .08s, box-shadow .08s; }
+.trip-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--red); }
+.trip-card b { display: block; font: 400 40px/1 var(--f-display); text-transform: uppercase; color: var(--yellow); }
+.trip-copy span { font-size: 15px; opacity: .85; }
+.trip-badge { flex: none; font: 700 12px var(--f-mono); text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; background: var(--yellow); color: var(--ink); border: 2px solid var(--paper); transform: rotate(-4deg); }
+.trip-go { margin-left: auto; font: 400 44px/1 var(--f-display); color: var(--yellow); }
+.trip-card.locked { background: var(--paper-2); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); cursor: not-allowed; }
+.trip-card.locked b { color: var(--ink-soft); }
+.trip-card.locked .trip-badge { background: var(--card); border-color: var(--ink); }
+.trip-card.locked .trip-go { color: var(--ink-soft); }
+
 /* ---------- shop ---------- */
 .shop { display: grid; gap: 12px; }
 .hint-card { display: grid; grid-template-columns: 58px 1fr auto; gap: 14px; align-items: center; background: var(--card); border: var(--bw) solid var(--ink); box-shadow: var(--shadow); padding: 12px 14px; }

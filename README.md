@@ -17,6 +17,14 @@ A Malaysia trivia game you can eat. Pass a set of questions to win a hawker dish
 - **5 hints**: 50:50, Ask Auntie (a poll that is right about 80% of the time), Clue, Freeze clock, and Skip. You can stock them up in the shop or buy one mid-game.
 - **Records**: best time or score per mode, plus your last 8 runs. Everything is saved in `localStorage`.
 
+## Makan Trip (unlocks at 10/10 dishes)
+
+- **Drive**: a toon city of Peranakan shophouses, condos, trees and street lamps around KLCC. Buildings, trees and markings are instanced, and every instance gets an instanced ink outline.
+- **Cafés**: 10 hawker stalls, one per dish. A stall only opens if you have won its dish. Drive into its ring to taste the dish, which earns coins and a stamp. Stalls stay shuttered until the dish is unlocked.
+- **Lumba (race)**: once you have tasted everything, race through 12 red gates. There is a countdown, a guiding arrow, a minimap marker and a saved best lap.
+- **Controls**: an arcade car model with a chase camera that avoids buildings. Supports WASD / arrows and on-screen touch controls.
+- **Preview**: `drive.html?preview=1` (or `index.html?preview=1`) unlocks everything without touching real progress.
+
 ## Tech
 
 - **Three.js with a scroll-linked stage**: one fixed WebGL canvas. Each 3D prop is pinned to an empty placeholder in the layout and animated by how far that placeholder has scrolled through the viewport. The props are the Petronas Towers, a tingkat that opens in layers, a flipping coin, a lazy susan of dishes and a blooming hibiscus.

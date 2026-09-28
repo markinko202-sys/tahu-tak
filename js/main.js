@@ -89,7 +89,10 @@ function rollDish(tier) {
 }
 function giveDish(id) {
   state.inv[id] = (state.inv[id] || 0) + 1;
-  if (!state.seen.includes(id)) state.seen.push(id);
+  if (!state.seen.includes(id)) {
+    state.seen.push(id);
+    if (state.seen.length === DISHES.length) setTimeout(() => toast('<b>Makan Trip unlocked!</b> Find it in your kitchen.'), 1200);
+  }
   save();
   renderWallet('dish');
   renderKitchen();
@@ -479,9 +482,25 @@ function renderKitchen() {
     </article>`;
   }).join('');
   $('#kitchenValue').textContent = value;
+  renderTrip();
   $('#collectionNote').textContent = `You’ve discovered ${state.seen.length} of ${DISHES.length} dishes.`;
   $('#sellAll').disabled = !dishTotal();
 }
+
+/* ---------- Makan Trip (unlocks with the full collection; ?preview skips the grind) ---------- */
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+function renderTrip() {
+  const card = $('#tripCard');
+  const open = PREVIEW || state.seen.length === DISHES.length;
+  card.classList.toggle('locked', !open);
+  card.href = PREVIEW ? 'drive.html?preview=1' : 'drive.html';
+  card.setAttribute('aria-disabled', String(!open));
+  $('#tripBadge').textContent = PREVIEW ? 'Preview' : open ? 'Unlocked' : `${state.seen.length}/${DISHES.length}`;
+  $('#tripText').textContent = open
+    ? 'Drive around the city, stop at the cafés to taste your dishes, then race the streets.'
+    : 'Collect all 10 dishes to unlock a drive around the city.';
+}
+$('#tripCard').addEventListener('click', (e) => { if ($('#tripCard').classList.contains('locked')) e.preventDefault(); });
 
 function sell(id, n) {
   const have = state.inv[id] || 0;
